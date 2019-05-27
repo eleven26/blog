@@ -3,10 +3,13 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: docs
+title: eleven26
 subtitle:
 description:
 keywords:
+  - php
+  - laravel
+  - vue
 author: baiguiren
 language:
 timezone:
