@@ -36,7 +36,6 @@ tags: git-helper
 
 #### 实现方式
 * 基于 [electron-vue](https://github.com/SimulatedGREG/electron-vue) 开发，大部分操作通过 `php` 调用系统命令执行，少数通过 `node` 调用系统命令执行。
-* 命令调用方式为: 使用 [swoole](https://github.com/swoole/swoole-src) 的 `HTTP` 功能，在虚拟机里面开启 `HTTP` 服务，客户端通过接口传递需要执行的命令，`HTTP` 服务处理请求，执行命令，返回结果
 
 #### FAQ
 * 为什么某一个模块的代码没有切换到某一个分支？一般是代码冲突了，需要自行解决冲突
