@@ -15,11 +15,7 @@ tags: git-helper
 * 辅助开发人员快速进行某些重复性操作
 
 #### 系统要求
-* VirtualBox
-* Vagrant
-* Homestead
-* vagrant 添加到了环境变量
-* 虚拟机的 php 安装了 swoole 扩展
+* 安装了 git
 
 #### 安装
 * [git-helper下载](http://192.168.2.154:5000)，根据操作系统选择对应的版本下载
