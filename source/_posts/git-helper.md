@@ -26,7 +26,6 @@ tags: git-helper
 
 #### 配置
 * Foundation 路径
-* Homestead 路径（因为基本所有命令在 vagrant 虚拟机执行）
 
 #### 介绍
 * 切换到某一分支: 根据配置的 Foundation 路径，切换 Foundation 以及所有子模块的 `git` 仓库到某一个分支（切换之前，如果有未提交代码，会先 `git stash`，切换之后再 `git stash pop`）
