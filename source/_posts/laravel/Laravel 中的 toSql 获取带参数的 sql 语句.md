@@ -1,6 +1,6 @@
 ---
 title: Laravel 中的 toSql 获取带参数的 sql 语句
-date: 2018-06-27 10:40：00
+date: 2018-06-27 10:40:00
 tags: [Laravel, PHP]
 ---
 
