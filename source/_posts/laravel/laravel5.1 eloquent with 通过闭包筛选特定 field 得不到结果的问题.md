@@ -72,7 +72,7 @@ select * from `profiles` where `profiles`.`user_id` in (?, ?) [3,4]
 
 用 `xdebug` 证实一下我们的想法：
 
-![match](/images/1-min.png)
+![match](/images/1.png)
 ![getRelationValue](/images/2.png)
 ![matchOneOrMany](/images/3.png)
 
