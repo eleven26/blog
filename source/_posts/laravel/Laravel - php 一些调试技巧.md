@@ -1,5 +1,5 @@
 ---
-title: laravel/php 一些调试技巧
+title: Laravel/PHP 一些调试技巧
 date: 2019-05-11 11:48:45
 tags: [Laravel, PHP]
 ---
