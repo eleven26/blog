@@ -1,8 +1,10 @@
 ---
-title: Laravel5.1 eloquent with 通过闭包筛选特定 field 得不到结果的问题.md
+title: Laravel5.1 eloquent with 通过闭包筛选特定 field 得不到结果的问题
 date: 2018-01-06 09:35:00
 tags: [Laravel, PHP]
 ---
+
+#### 模型定义
 
 `App\User`
 
@@ -48,8 +50,9 @@ App\User::with([
 
 这和 `Laravel` 框架的工作方式相关，我们先看看下面的例子：
 
-我们使用 `DB::listen` 方法去记录相关的 `sql` 语句
+#### `sql`
 
+我们使用 `DB::listen` 方法去记录相关的 `sql` 语句
 
 我们查看 log 可以发现有以下语句：
 ```sql
@@ -69,6 +72,8 @@ select * from `profiles` where `profiles`.`user_id` in (?, ?) [3,4]
 
 上面的 `hasMany` 方法默认第二第三个参数其实就是这两个集合建立关联的关键，第三个参数 `user_id`、第四个参数 `id`；这样一来我们就可以通过比较 `Profile` 的 `user_id` 和 `User` 里面的 `id`，如果相等，则这个 `Profile` 是属于这个 `User` 的，我们就把该 `Profile` 放进 `User` 的 `profile` 关联中，最后就得到我们想要的结果了。
 
+
+#### `Xdebug` 验证
 
 用 `xdebug` 证实一下我们的想法：
 
