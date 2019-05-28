@@ -1,6 +1,6 @@
 ---
 title: 使用 Laravel 的 queue 必须知道的一些事
-date: 2018-07-26 07:53：00
+date: 2018-07-26 07:53:00
 tags: [Laravel, PHP]
 ---
 
