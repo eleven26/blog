@@ -1,7 +1,7 @@
 ---
 title: laravel/php 一些调试技巧
 date: 2019-05-11 11:48:45
-tags:
+tags: [Laravel, PHP]
 ---
 
 #### 1. 模型属性不知道哪里修改？
@@ -18,7 +18,7 @@ class Person extends Model
         if ($key == 'xxx') { // 'xxx' 是你想要监听的属性
             throw new \RuntimeException;
         }
-        
+
         return parent::setAttribute($key, $value);
     }
 }
@@ -55,4 +55,4 @@ var_dump($a->c);
 ```
 
  对于这种场景，我们也可以 try catch，然后在异常处理里面 dump 上下文一些关键的变量、对象这些东西。
- 
+
