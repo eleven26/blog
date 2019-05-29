@@ -4,6 +4,8 @@ date: 2018-11-18 21:16:00
 tags: [Laravel, PHP]
 ---
 
+解决方法：[https://github.com/laravel/passport/issues/221](https://github.com/laravel/passport/issues/221)
+
 In your oauth_clients table, do the values you have above exist exactly as you have them in your database?
 
 oauth_clients
