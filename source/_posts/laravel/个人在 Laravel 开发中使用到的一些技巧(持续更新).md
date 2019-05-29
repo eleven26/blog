@@ -4,7 +4,7 @@ date: 2018-07-29 07:18:00
 tags: [Laravel, PHP]
 ---
 
-#### 1、更高效率地查询：使用批量查询代替 `foreach` 查询（多次 `io` 操作转换为一次 `io` 操作）
+#### 更高效率地查询：使用批量查询代替 `foreach` 查询（多次 `io` 操作转换为一次 `io` 操作）
 
 如果想要查看更详尽的介绍，可以看看这篇文章 [什么是 N+1 问题，以及如何解决 Laravel 的 N+1 问题？](https://learnku.com/laravel/t/15077/what-is-the-n1-problem-and-how-to-solve-the-n1-problem-in-laravel)
 
@@ -87,7 +87,7 @@ $adminUsers->load('admin_user_info');
 ```
 
 
-####  2、更优雅地处理你的 `paginate()` 结果（利用 `Collection` 里的方法）
+#### 更优雅地处理你的 `paginate()` 结果（利用 `Collection` 里的方法）
 
 这里应该有一小点，我们想要实现某些功能的时候可以先看看框架有没有提供相关的支持，如命名在驼峰式、下划线式转换；
 字符串是否以某些子串开始、结束；数组排序、过滤等等，其实很多常用的功能 `Laravel` 都有现成的轮子，
@@ -115,7 +115,7 @@ public function __call($method, $parameters)
 但是对于另外一些如根据某个字段排序等操作，利用 `Collection` 的 `sort` 方法明显就简洁多了。
 
 
-#### 3、利用 `Macroable Trait` 更优雅地对框架某些功能进行扩展
+#### 利用 `Macroable Trait` 更优雅地对框架某些功能进行扩展
 
 我们想想，如果有一天，我们需要自定义一些 `Query Builder` 的方法的时候，我们会怎么做？
 当然我们可以利用 `Global Scopes` 这个特性来实现某些类似的功能，但是如果我们想要 `DB` 类也用上这个扩展的方法的话，这样就行不通了。
@@ -138,7 +138,7 @@ use BuildsQueries, Macroable {
 当然，我们利用 `macro` 方法来扩展的功能，`IDE` 不会有任何提示，除非，我们像 `ide-helper` 那样处理。具体可参照另外一篇文章：`Laravel query builder/ Eloquent builder` 添加自定义方法
 
 
-#### 4、利用 `array_get`、`data_get`  方法代替多个 `isset` 判断
+#### 利用 `array_get`、`data_get`  方法代替多个 `isset` 判断
 
 最常用到的地方是，我们利用 `with` 关联查询出多层关联，但是我们不确定所有层级关联是否存在，所以我们可能就要一层层地 `isset` 来判断。
 
@@ -157,7 +157,7 @@ $content = data_get($user, 'article.comment.content'); // 评论内容
 利用 `array_get` 可以更方便完成地进行对多维数组的操作，因为 `Laravel` 把多维数组抽象成了点号分隔的一维数组，不得不说，说 `Laravel` 优雅不是没有道理的。
 
 
-#### 5、多对多关联更方便的操作方法 `attach`、`detach`、`sync`
+#### 多对多关联更方便的操作方法 `attach`、`detach`、`sync`
 
 ```php
 // 附加多对多关系
@@ -194,14 +194,14 @@ $user->roles()->sync([1 => ['expires' => true], 2, 3]);
 `sync` 的功能和 `attach` 类似，但是 `sync` 还有个功能是，可以把不在指定数组的关联数据删除（如果我们不需要删除可以传递第二个参数 `false`，或者直接使用 `attach`）。
 
 
-#### 6、使用 `debugbar` 尽早发现性能问题
+#### 使用 `debugbar` 尽早发现性能问题
 
 这个其实使用 `Laravel` 的人基本上都知道，但是可能我们没有用到其中一些功能，
 其实 `Laravel-debugbar` 可以通过配置获取更加详情的信息（如 `sql` 的堆栈信息、是否 `explain` 等等非常多实用的功能）， 
 具体功能还是得查看其官方文档，有很多实用的功能，可以让我们对我们的代码了解更多。
 
 
-#### 7、使用 `chunk` 处理表全部数据
+#### 使用 `chunk` 处理表全部数据
 
 有时候，我们给表新增了一个字段，这个字段是由其他字段算出来的，这时候我们就需要跑一遍该表，进行该字段的更新。
 一种做法是一次性全表查询出来，`foreach` 循环处理，这种做法在数据量小的时候问题不大，
@@ -218,7 +218,7 @@ DB::table('users')->chunk(100, function($users)
 });
 ```
 
-#### 8、关联数据分页、统计或者其他类似操作
+#### 关联数据分页、统计或者其他类似操作
 
 我们先来看看 `Relation` 的定义(5.6)，我们可以发现里面有个 `__call` 方法，
 
@@ -285,7 +285,7 @@ public function __call($method, $parameters)
 如果前面条件都不满足就去调用 `Query Builder` 中对应的方法，当然，如果 `Query Builder` 里面也没有这个方法就会抛出异常。而实现这些功能都得益于 php 的 `__call` 魔术方法。
 
 
-##### 　关于 `Eloquent Builder` 和 `Query Builder` 的区别：
+##### 关于 `Eloquent Builder` 和 `Query Builder` 的区别：
 
 * 我们使用 `Eloquent Model` 类或 `Eloquent Model` 子类进行操作的时候，如果使用的都是 `Eloquent Builder` 里面的方法，
 那么返回的也是一个 `Eloquent Builder` 或者是最终结果（视操作而定，有可能是 `Collection` 实例、`null`、某个 `Model` 子类的实例等）。
@@ -314,7 +314,7 @@ $user->roles()->count(); // roles() 调用返回 BelongsToMany 实例，
 分页也类似 `$user->roles()->paginate();` 这在我们需要查看某条记录的关联数据时候非常有用。
 
 
-#### 9、表名使用单数命名时候 `Model` 类不用定义 `protected $table`
+#### 表名使用单数命名时候 `Model` 类不用定义 `protected $table`
 
 `Laravel` 中表名默认是复数形式的，不知道大家有没有用复数做表名，我是没有这种习惯。如果我们想用单数命名，又不想每个 `Model` 类里面写一个 `protected $table；`可以重写 `Model` 类的 `getTable` 方法
 
@@ -336,7 +336,7 @@ public function getTable()
 
 把转复数的调用去掉就好了。
 
-#### 10、为复杂表单创建一个 `validator`
+#### 为复杂表单创建一个 `validator`
 
 这个其实也不算是什么技巧，可能一开始写得舒服就一个个 `if` 判断，但是这样子到最后会发现我们的代码越来越长，然后可读性也会越来越差。我们可以尝试使用一下 `validator`：
 
@@ -362,7 +362,7 @@ if ($validator->fails()) {
 同时也是为了保持数据的完整性，因为这的确是必须的数据，如果有一天某个错误导致这个关联的 `id` 没有保存到，可能会导致一些神奇的 bug 出现。
 
 
-#### 11、返回页面的同时返回一些额外的信息（如警告、错误）
+#### 返回页面的同时返回一些额外的信息（如警告、错误）
 
 ```php
 return redirect()->back()->withErrors('some error');
@@ -379,7 +379,7 @@ return redirect()->back()->withErrors('some error');
 其实 `Laravel` 在处理表单的时候也有一些类似的处理， 如 `redirect('form')->withInput();`
 
 
-#### 12、在控制器以外的地方返回响应
+#### 在控制器以外的地方返回响应
 
 这种做法可能会导致难以调试的 bug（因为维护的人可能不知道在哪里返回了），不过实在需要的时候，可以用一用。
 
@@ -387,14 +387,14 @@ return redirect()->back()->withErrors('some error');
 response()->json(['message' => 'test send response directly'])->send();exit;
 ```
 
-#### 13. 使用 `EloquentCollection` 加载关联
+#### 使用 `EloquentCollection` 加载关联
 
 我们在使用 `User::get()` 的时候获取到的是一个 `Illuminate\Database\Eloquent\Collection` 实例，这个实例继承了 `Illuminate\Support\Collection`，
 可以直接使用 `Illuminate\Support\Collection` 的方法。除此之外，还有一些自身特有的方法，比如 `load`，我们可以使用 `load` 方法加载每一项的关联数据，
 好比如，如果每一个 `User` 有一个 `info` 关联，我们可以使用 `$users->load('info')` 关联，这种方法的好处是，避免了 `n+1` 的问题
 
 
-#### 14. 函数、 类方法的依赖注入正确使用姿势
+#### 函数、 类方法的依赖注入正确使用姿势
 
 * 函数
 
