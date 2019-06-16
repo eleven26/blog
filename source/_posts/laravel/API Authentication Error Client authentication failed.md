@@ -1,5 +1,5 @@
 ---
-title: API Authentication Error: {"error":"invalid_client","message":"Client authentication failed"}
+title: API Authentication (laravel oauth)
 date: 2018-11-18 21:16:00
 tags: [Laravel, PHP]
 ---

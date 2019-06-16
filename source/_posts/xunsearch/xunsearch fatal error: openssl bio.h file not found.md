@@ -1,5 +1,5 @@
 ---
-title: xunsearch fatal error: openssl bio.h file not found
+title: xunsearch fatal error openssl bio file not found
 date: 2018-06-10 18:35:00
 tags: [xunsearch]
 ---

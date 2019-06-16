@@ -188,9 +188,17 @@ Docker 容器重新启动的时候，会沿用 `docker run` 命令时指定的�
 
 也可以使用 -f 或者 --format 标志来选定查看结果。
 
-`sudo docker inspect --format='{{ .State.Running }}' daemon_dave` 返回容器运行状态
+```
+sudo docker inspect --format='{{ .State.Running }}' daemon_dave
+```
 
-`sudo docker inspect --format='{{ .NetworkSettings.IPAddress }}' daemon_dave` 返回容器 IP 地址
+返回容器运行状态
+
+```
+sudo docker inspect --format='{{ .NetworkSettings.IPAddress }}' daemon_dave
+```
+
+返回容器 IP 地址
 
 
 #### 删除容器
