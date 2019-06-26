@@ -141,3 +141,58 @@ apt-get -y install apache2
 sudo docker commit 4aab3ceksld jamtur01/apache2
 ```
 
+`4aab3ceksld` 是容器 ID，`jamtur01/apache2` 是镜像仓库和镜像名。需要注意的是，`docker commit` 提交的只是创建容器的镜像与容器当前状态之间有差异的部分，这使得该更新非常轻量。
+
+* 检查新创建的镜像
+
+```bash
+sudo docker images jamtur01/apache2
+```
+
+也可以在提交镜像时指定更多的数据（包括标签）来详细描述所做的修改。
+
+```bash
+sudo docker commit -m"A new custom image" -a"James Turnbull" 4aab3ceksld jamtur01/apache2:webserver
+```
+
+在这条命令里，我们指定了更多的信息选项。首先 -m 选项用来指定新创建的镜像的提交信息。同时还指定了 -a 选项，用来列出该镜像的作者。接着指定了想要提交的容器的 ID。最后的 jamtur01/apache2 指定了镜像的用户名和仓库名，并为该镜像增加了一个 webserver 标签。
+
+可以用 `docker inspect` 命令来查看新创建的镜像的详细信息：
+
+```bash
+sudo docker inspect jamtur01/apache2:webserver
+```
+
+如果想从刚创建的新镜像运行一个容器，可以使用 `docker run` 命令。
+
+```bash
+sudo docker run -t -i jamtur01/apache2:webserver /bin/bash
+```
+
+##### 用 Dockerfile 构建镜像
+
+```dockerfile
+# Version: 0.0.1
+FROM ubuntu:14.04
+MAINTAINER James Turnbull "james@example.com"
+RUN apt-get update && apt-get install -y nginx
+RUN echo 'Hi, I am in your container' > /usr/share/nginx/html/index.html
+EXPOSE 80 
+```
+
+该 Dockerfile 由一系列指令和参数组成。每条指令，如 FROM，都必须为大写字母，且后面要跟随一个参数：FROM ubuntu:14.04。Dockerfile 中的指令会会按顺序从上到下执行，所以应该根据需要合理安排指令的顺序。
+
+每条指令都会创建一个新的镜像层并对镜像进行提交。Docker 大体上按照如下流程执行 Dockerfile 中的指令。
+
+* Docker 从基础镜像运行一个容器
+
+* 执行一条指令，对容器作出修改
+
+* 执行类似 `docker commit` 的操作，提交一个新的镜像层
+
+* Docker 再基于刚提交的镜像运行一个新容器
+
+* 执行 Dockerfile 中的下一条指令，直到所有指令执行完毕。
+
+
+
