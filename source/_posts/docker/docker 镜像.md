@@ -194,5 +194,94 @@ EXPOSE 80
 
 * 执行 Dockerfile 中的下一条指令，直到所有指令执行完毕。
 
+每个 Dockerfile 的第一条指令必须是 FROM。FROM 指令指定一个已经存在的镜像，后续指令都将基于该镜像进行，这个镜像被称为基础镜像（base image）。
+
+每条 RUN 指令都会创建一个新的镜像层，如果该指令执行成功，就会将此镜像层提交，之后继续执行 Dockerfile 中的下一条指令。
+
+默认情况下，RUN 指令会在 shell 里使用命令包装器 /bin/sh -c 来执行。如果是在一个不支持 shell 平台上运行或者不希望在 shell 中运行（比如避免 shell 字符串篡改），也可以使用 exec 格式的 RUN 指令。
+
+```bash
+RUN [ "apt-get", " install", "-y", "nginx" ]
+```
+
+在这种方式中，我们使用一个数组来指定要运行的命令和传递给该命令的每个参数。
+
+接着设置了 EXPOSE 指令，这条指令告诉 Docker 容器该容器内的应用程序将会使用容器的指定端口。这并不意味着可以自动访问容器运行中服务的端口（这里是 80）。出于安全的原因，Docker 并不会自动打开该端口，而是需要用户在使用 `docker run` 运行容器时来指定需要打开哪些端口。
+
+如果没有指定任何标签，Docker 将会自动为镜像设置一个 latest 标签。
+
+```bash
+sudo docker build -t="jamtur01/static_web:v1" .
+```
+
+上面的 `.` 告诉 Docker 到本地目录去找 Dockerfile 文件。也可以指定一个 Git 仓库的源地址来指定 Dockerfile 的位置。
+
+也可以通过 -f 标志指定一个区别于标准 Dockerfile 的构建源的位置。
+
+从新镜像启动容器：
+
+```bash
+sudo docker run -d -p 80:80 --name static_web jamtur01/static_web:v1 nginx -g "daemon off;"
+```
+
+* -d 选项，告诉 Docker 以分离 (detached) 的方式在后台运行
+
+* -p 标志，用来控制 Docker 在运行时应该公开哪些网络端口给外部（宿主机）。
+
+运行一个容器时，Docker 可以通过两种方法来在宿主机上分配端口。
+
+* Docker 可以在宿主机上随机选择一个位于 32768~61000 的一个比较大的端口号来映射到容器的 80 端口上。
+
+* 可以在 Docker 宿主机中指定一个具体的端口来映射到容器中的 80 端口上。
+
+可以使用命令 `docker ps -l` 来查看容器的端口分配情况。
+
+也可以通过 `docker port` 来查看容器的端口映射情况。
+
+```bash
+sudo docker port static_web 80
+```
+
+绑定不同的端口：
+
+```bash
+sudo docker run -d -p 8080:80 --name static_web jamtur01/static_web:v1 nginx -g "daemon off;"
+```
+
+这条命令会将容器中的 80 端口绑定到宿主机的 8080 端口上。
+
+绑定到特定的网络接口：
+
+```bash
+sudo docker run -d -p 127.0.0.1:80:80 --name static_web jamtur01/static_web:v1 nginx -g "daemon off;"
+```
+
+这条命令会将容器内的 80 端口绑定到本地宿主机的 127.0.0.1 这个 IP 的 80 端口上。我们也可以使用类似的方式将容器内的 80 端口绑定到一个宿主机的随机端口上：
+
+```bash
+sudo docker run -d -p 127.0.0.1::80 --name static_web jamtur01/static_web:v1 nginx -g "daemon off;"
+```
+
+这时我么可以使用 `docker inspect` 或者 `docker port` 命令来查看容器内的 80 端口具体被绑定到了宿主机哪个端口上。
+
+Docker 还提供了一个更简单的方式，即 -P 参数，该参数可以用来对外公开在 Dockerfile 中通过 EXPOSE 指令公开的所有端口。
+
+```bash
+sudo docker run -d -P --name static_web jamtur01/static_web nginx -g "daemon off;"
+```
+
+改命令会将容器内的 80 端口对本地宿主机公开，并且绑定到宿主机的一个随机端口上。
+
+##### .dockerignore
+
+如果在构建上下文目录下存在以 .dockerignore 命名的文件的话，那么该文件内容会被按行进行分割，每一行都是一条文件过滤匹配模式。这非常像 .gitignore 文件，该文件用来设置哪些文件不会被当作构建上下文的一部分，因此可以防止它们被上传到 Docker 守护进程中去。该文件中模式的匹配规则采用了 Go 语言中的 filepath。
+
+
+##### Dockerfile 和构建缓存
+
+由于每一步的构建过程都会将结果提交为镜像，所以 Docker 的构建镜像过程就显得非常聪明。我们在构建失败的时候可以使用之前某一步的构建缓存作为新的开始点。
+
+然而，有些时候需要确保构建过程不会使用缓存。要想略过缓存功能，可以使用 `docker build` 的 `--no-cache` 标志。
+
 
 
