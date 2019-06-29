@@ -75,7 +75,7 @@ ENTRYPOINT [ "/usr/sbin/nginx", "-g", "daemon off;" ]
 
 现在我们重新构建我们的镜像，并将 ENTRYPOINT 设置为 `ENTRYPOINT ["/usr/sbin/nginx"]`
 
-重新构建镜像：
+重新构建镜像
 
 ```bash
 sudo docker build -t="jamtur01/static_web" .
@@ -83,7 +83,7 @@ sudo docker build -t="jamtur01/static_web" .
 
 然后，我们从 jamtur01/static_web 镜像启动一个新容器。
 
-使用 `docker run` 命令启动包含 ENTRYPOINT 指令的容器：
+使用 `docker run` 命令启动包含 ENTRYPOINT 指令的容器
 
 ```bash
 sudo docker run -t -i jamtur01/static_web -g "daemon off;"
@@ -91,7 +91,7 @@ sudo docker run -t -i jamtur01/static_web -g "daemon off;"
 
 在上面的命令中，我们指定了 `-g "daemon off;"` 参数，这个参数会传递给用 ENTRYPOINT 指令的命令，在这里该命令为 `/usr/sbin/nginx -f "daemon off;"`。改命令会以前台运行的方式启动 Nginx 守护进程，此时这个容器就会作为一台 Web 服务器来运行。
 
-我们也可以组合使用 ENTRYPOINT 和 CMD 指令来完成一些巧妙的工作。比如：
+我们也可以组合使用 ENTRYPOINT 和 CMD 指令来完成一些巧妙的工作。比如
 
 ```dockerfile
 ENTRYPOINT [ "/usr/sbin/nginx" ]
