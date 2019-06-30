@@ -1,5 +1,5 @@
 ---
-title: Docker 实例（一） - 使用 Docker 测试静态网站.md
+title: Docker 实例（一） - 使用 Docker 测试静态网站
 date: 2019-06-30 13:05:02
 tags: Docker
 ---
