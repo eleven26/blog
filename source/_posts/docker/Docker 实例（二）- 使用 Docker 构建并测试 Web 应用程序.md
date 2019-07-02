@@ -275,6 +275,123 @@ traceroute google.com
 
 可以看到，容器地址的下一跳是宿主网络上 docker0 接口的网关 IP 172.17.42.1
 
-不过 Docker 网络还有
+不过 Docker 网络还有还有另外一个部分配置才允许建立连接：防火墙规则和 NAT 配置。这些配置允许 Docker 在宿主网络和容器间路由。现在来查看一下宿主机上的 IPTables NAT 配置：
+
+```bash
+sudo iptables -t nat -L -n
+```
+
+这里还有几个值得注意的 IPTables 规则。首先，我们注意到，容器默认是无法访问的。从宿主网络与容器通信时，必须明确指定打开的端口。
+
+
+### Redis 容器的网络
+
+使用 `docker inspect` 命令查看新的 Redis 容器的网络配置：
+
+```bash
+sudo docker inspect redis
+```
+
+`docker inspect` 命令展示了 Docker 容器的细节，这些细节包括配置信息和网络状况。也可以在命令里使用 -f 标志只获取 IP 地址：
+
+```bash
+sudo docker inspect -f '{{ .NetworkSettings.IPAddress }}' redis
+```
+
+通过运行 `docker inspect` 命令可以看到容器的 IP 地址。还能看到宿主机和容器之间的端口映射关系。同时，因为运行在本地的 Docker 宿主机上，所以不一定要用映射后的端口，也可以直接使用分配给 redis 容器的 IP 和容器的 6379 端口。
+
+```bash
+redis-cli -h 172.17.0.18
+```
+
+Docker 默认会把公开的端口绑定到所有的网络接口上。因此，也可以通过 localhost  或者 127.0.0.1 来访问 Redis 服务器。
+
+这种容器互联的方案存在的问题：
+
+* 要在应用程序里对 Redis 容器的 IP 地址做硬编码
+
+* 如果重启容器，Docker 会改变容器的 IP 地址（比如 `docker restart` 之后，容器 IP 地址会发生改变）
+
+
+### Docker Networking
+
+容器之间的连接用网络创建，这被称为 Docker Networking。Docker Networking 允许用户创建自己的网络，容器可以通过这个网络互相通信。实质上，Docker Networking 以新的用户管理的网络补充了现有的 docker0。更重要的是，现在容器可以跨越不同的宿主机来通信，并且网络配置可以更灵活地定制。Docker Networking 也和 Docker Compose 以及 Swarm 进行了集成。
+
+> Docker Networking 支持也是可以插拔的，也就是说可以增加网络驱动以支持来自不同网络设备提供商的特定拓扑和网络框架
+
+创建一个 Docker 网络：
+
+```bash
+sudo docker network create app
+```
+
+这里用 `docker network` 命令创建了一个桥接网络，命名为 app，这个命令返回新创建的网络的网络 ID。
+
+然后可以用 `docker network inspect` 命令查看新创建的这个网络：
+
+```bash
+sudo docker network inspect app
+```
+
+我们可以看到这个新网络是一个本地的桥接网络。
+
+> 除了运行于单个主机上的桥接网络，我们也可以创建一个 overlay 网络，overlay 网络允许我们跨多台宿主机进行通信。
+
+可以使用 `docker network ls` 列出当前系统中的所有网络：
+
+```bash
+sudo docker network ls
+```
+
+也可以使用 `docker network rm` 删除一个 Docker 网络。
+
+
+在 Docker 网络中创建 Redis 容器：
+
+```bash
+sudo docker rum -d --net=app --name db jamtur01/redis
+```
+
+这里我们基于 jamtur01/redis 镜像创建了一个名为 db 的新容器。我们同时指定了一个新的标志 --net，--net 标志指定了新容器将会在哪个网络中运行。
+
+这时，如果再次运行 `docker network inspect` 命令，将会看到这个网络更详细的信息：
+
+```bash
+sudo docker network inspect app
+```
+
+链接 Redis 容器：
+
+```bash
+cd sinatra/webapp
+sudo docker run -p 4567 \
+--net=app --name webapp -t -i \
+-v $PWD/webapp:/opt/webapp jamtur01/sinatra \
+/bin/bash
+```
+
+我们在 app 网络下启动了一个名为 webapp 的容器。
+
+由于这个容器是在 app 网络内部启动的，因此 Docker 将会感知到所有在这个网络下运行的容器，并且通过 /etc/hosts 文件，将这些容器的地址保存到本地 DNS 中。
+
+```bash
+cat /etc/hosts
+```
+
+我们可以看到有一条记录是 `172.18.0.2 db`，这就意味着我们可以通过 db 来访问 redis 容器。
+
+代码中指定 Redis DB 主机名：
+
+```ruby
+redis = Redis.new(:host => 'db', :port => '6379')
+```
+
+现在，就可以启动我们的应用程序，并且让 Sinatra 应用程序通过 db 和 webapp 两个容器间的连接，将接收到的参数写入 Redis 中，db 和 webapp 容器间的连接也是通过 app 网络建立的。
+
+重要的是，如果任何一个容器重启了，那么它们的 IP 地址信息也会在网络其他容器中的 /etc/hosts 更新。也就是说，对底层容器的修改并不会对我们的应用程序正常工作产生影响。
+
+
+##### 将已有容器连接到 Docker 网络
+
 
 
