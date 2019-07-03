@@ -393,5 +393,28 @@ redis = Redis.new(:host => 'db', :port => '6379')
 
 ##### 将已有容器连接到 Docker 网络
 
+也可以将正在运行的容器通过 docker network connect 命令添加到已有的网络中。因此，我们可以将已经存在的容器添加到 app 网络中。假设已经存在的容器名为 db2，这个容器里也运行着 Redis，让我们将这个容器添加到 app 网络中去。
 
+添加已有容器到 app 网络：
 
+```bash
+sudo docker network connect app db2
+```
+
+添加 db2 容器后的 app 网络：
+
+```bash
+sudo docker network inspect app
+```
+
+所有 app 网络中的容器的 /etc/hosts 都会包含其他网络中容器的 DNS 信息。
+
+我们也可以通过 docker network disconnect 命令断开一个容器与指定网络的连接：
+
+```bash
+sudo docker network disconnect app db2
+```
+
+这条命令会从 app 网络中断开 db2 容器。
+
+一个容器可以同时隶属于多个 Docker 网络，所以可以创建非常复杂的网络模型。
