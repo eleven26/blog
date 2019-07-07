@@ -13,5 +13,5 @@ brew tap jesseduffield/lazydocker
 brew install lazydocker
 ```
 
-![screenshot](/images/lazydocker.png)
+![screenshot](/images/lazydocker.jpg)
 
