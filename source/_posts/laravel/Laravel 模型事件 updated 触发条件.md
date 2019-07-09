@@ -10,4 +10,8 @@ tags: [Laravel, PHP]
 * 直接 `app(Model::class)->where()->update()` 不会触发
 　　`$sku = app(Sku::class), $sku->has_stock = 1; $sku->save()` 这样才会触发
 
+* 这是因为，使用 `app(Model::class)->where()->update()` 的时候，调用的是 Query/Builder 的 update 方法，这里面是没法触发 update 事件的。
+
+* 使用 `$sku = app(Sku::class), $sku->has_stock = 1; $sku->save()` 的时候，使用的 update 方法是 Eloquent/Model 里面的 update 方法。
+
 [https://github.com/laravel/framework/issues/11777#issuecomment-170384117](https://github.com/laravel/framework/issues/11777#issuecomment-170384117)
