@@ -23,3 +23,38 @@ docker ps -a
 综上，再次声明：Volume 并不是为了持久化。
 
 
+### 什么是 Volume
+
+Volume 可以将容器以及容器产生的数据分离开来，这样，当你使用 `docker rm my_container` 删除容器时，不会影响相关的数据。
+
+Volume 可以使用以下两种方式创建：
+
+* 在 Dockerfile 中指定 `VOLUME /some/dir`
+
+* 执行 `docker run -v /some/dir` 命令来指定
+
+无论哪种方式都是做了同样的事情。它们告诉 Docker 在主机上创建一个目录（默认情况下是在 `/var/lib/docker` 下），然后将其挂载到指定的路径（例子中是 `/some/dir`）。当删除使用该 Volume 的容器时，Volume 本身不会受到影响，它可以一直存在下去。
+
+如果在容器中不存在指定的路径，那么该目录将会被自动创建。
+
+你可以告诉 Docker 同时删除容器和其 Volume：
+
+```bash
+docker rm -v my_container
+```
+
+有时候，你想在容器中使用主机上的某个目录，你可以通过其它的参数来指定：
+
+```bash
+docker run -v /host/path:/some/path
+```
+
+这明确地告诉 Docker 使用指定的主机路径来代替 Docker 自己创建的根路径并挂载到容器内指定的路径（以上例子为 `/some/path`）。需要注意的是，这种方式同样支持文件。在 Docker 术语中，这通常被称为 `bind-mount`（虽然技术层面上是这样讲的，但是实际的感觉是所有的 Volume 都是 bind-mounts 的）。
+如果主机上的路径不存在，目录将自动在给定的路径中创建。
+
+对待 bind-mounts Volume 和一个正常的 Volume 有一点不同，它不会修改主机上那些非 Docker 创建的东西：
+
+* 一个正常的 Volume，Docker 会自动将指定 Volume 路径（如上面的示例 `/some/path`）上的数据复制到由 Docker 创建的新目录下，如果是 "bind-mount"。Volume 就不会这样做。（这样做会将主机上的目录复制到容器）
+
+* 当你执行 `docker rm -v my_container` 命令时，"bind-mount" 类型的 Volume 不会被删除
+
