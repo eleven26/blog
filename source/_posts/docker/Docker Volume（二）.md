@@ -58,3 +58,55 @@ docker run -v /host/path:/some/path
 
 * 当你执行 `docker rm -v my_container` 命令时，"bind-mount" 类型的 Volume 不会被删除
 
+容器也可以与其它容器共享 Volume。
+
+```bash
+docker run --name my_container -v /some/path ...
+docker run --volume-from my_container --name my_container2 ...
+```
+
+上面的命令告诉 Docker 从第一个容器挂载相同的 Volume 到第二个容器，它可以在两个容器之间共享数据。
+
+如果你执行 `docker rm -v my_container` 命令，而上方的第二个容器依然存在，那 Volume 不会被删除，如果你不使用 `docker rm -v my_container2` 命令删除第二个容器，那它会一直存在。
+
+
+### Dockerfile 里的 VOLUME
+
+正如前面提到的，Dockerfile 中的 VOLUME 指令也可以做同样的事情，类似 `docker run` 命令中的 `-v` 参数（除了你不能在 Dockerfile 指定主机路径）。也正因为如此，构建镜像时可以得到惊奇的效果。
+
+在 Dockerfile 中的每个命令都会创建一个新的用于运行指定命令的容器，并将容器提交到镜像，每一步都是在前一步的基础上构建的。因此 Dockerfile 中 `ENV FOO=bar` 等同于：
+
+```bash
+cid=$(docker run -e FOO=bar <image>)
+docker commit $cid
+```
+
+下面让我们来看看这个 Dockerfile 的例子发生了什么：
+
+```dockerfile
+FROM debian:jessie
+VOLUME /foo/bar
+RUN touch /foo/bar/baz
+```
+
+```bash
+docker build -t my_debian .
+```
+
+我们期待的是 Docker 创建一个名为 my_debian 并且 Volume 是 /foo/bar 的镜像，以及在 `/foo/bar/baz` 下添加了一个空文件，但是让我们看看等同的 CLI 命令行实际上做了哪些：
+
+```bash
+cid=$(docker run -v /foo/bar debian:jessie)
+image_id=$(docker commit $cid)
+cid=$(docker run $image_id touch /foo/bar/baz)
+docker commit $(cid) my_debian
+```
+
+真实过程可能并不是这样，但是类似。
+
+在这里，`/foo/bar` 会首先创建，所以我们每次通过这个镜像启动一个容器，都会有一个空的 `/foo/bar` 目录。正如前面所说，Dockerfile 中每个命令都会创建一个新容器。
+也就是说，每次都会创建一个新的 Volume。由于例子的 Dockerfile 是先指定 Volume 的，所以当执行 `touch /foo/bar/baz` 命令的容器创建时，一个 Volume 会被挂载到 `/foo/bar`，然后 `baz` 才能被写入此 Volume，而不是实际的容器或镜像的文件系统内。
+
+所以，牢记 Dockerfile 中 VOLUME 指令的位置，因为它在你的镜像内创建了不可改变的目录。
+
+
