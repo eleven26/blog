@@ -1,5 +1,5 @@
 ---
-title: nginx 永久重定向配置.md
+title: nginx 永久重定向配置
 date: 2019-08-02 13:57:00
 tags: [nginx]
 ---
