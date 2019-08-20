@@ -6,7 +6,9 @@ tags: [Laravel, Dingo, laravel-s, Lumen]
 
 > 原因: 项目重度依赖 Dingo, 直接放弃 Dingo 的代价太大
 
-### 各个依赖版本
+> 有兴趣了解原理的可以看 [Dingo api 处理请求机制](https://blog.baiguiren.com/2019/08/20/laravel/Dingo%20api%20%E5%A4%84%E7%90%86%E8%AF%B7%E6%B1%82%E6%9C%BA%E5%88%B6/)
+
+## 各个依赖版本
 
 * [laravel-s(3.5.8)](https://github.com/hhxsv5/laravel-s/releases/tag/v3.5.8)
 
@@ -19,9 +21,9 @@ tags: [Laravel, Dingo, laravel-s, Lumen]
 * Dingo/api 2.0.0-alpha2.2
 
 
-### 步骤
+## 步骤
 
-* 修改 Laravel.php 的 handleDynamic 方法，如下
+#### 修改 Laravel.php 的 handleDynamic 方法，如下
 
 这一步需要另外 copy 一份 `Laravel.php` 出来，假设放在 `App\Swoole\Laravel.php`，
 
@@ -78,7 +80,7 @@ public function handleDynamic(IlluminateRequest $request)
 新的处理方式: 使用 `app('Dingo\Api\Http\Middleware\Request')` 来处理 HTTP 请求，这是正常情况下 Dingo 处理请求的第一个经过的中间件，如果请求之后返回的还是一个 `Request`，而不是 `Response`，说明这不是使用 `app('api.router')` 定义的路由，退化为使用 `$response = $this->app->dispatch($request);` 处理该请求。
 
 
-* 自动加载处理
+#### 自动加载处理
 
 然后在 `bin/laravels.php` $basePath 后面加上:
 
@@ -89,7 +91,7 @@ require_once $basePath . '/app/Swoole/Laravel.php';
 目的: 自动加载机制在加载 `Laravel` 类的时候加载的是自定义的 `Laravel.php`，而不是原来的 [Laravel.php](https://github.com/hhxsv5/laravel-s/blob/v3.5.8/src/Illuminate/Laravel.php) 这样我们的修改就起效了。
 
 
-* Dingo 控制器在请求结束清理
+#### Dingo 控制器在请求结束清理
 
 添加文件 app/Cleaners/ControllerCleaner.php
 
@@ -130,7 +132,7 @@ class ControllerCleaner implements CleanerInterface
 ```
 
 
-* Dingo 中间件处理
+#### Dingo 中间件处理
 
 新增文件 App\Cleaners\MiddlewareCleaner.php
 
