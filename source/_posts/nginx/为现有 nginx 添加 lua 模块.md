@@ -4,6 +4,8 @@ date: 2019-08-27 12:53:00
 tags: [nginx]
 ---
 
+弃用（还是使用 openresty 吧）
+
 ### 安装 LuaJIT
 
 ```bash
