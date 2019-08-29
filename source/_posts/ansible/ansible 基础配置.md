@@ -78,6 +78,6 @@ ansible vagrant -m command -a "pwd"
 ```
 
 > ➜  ~ ansible vagrant -m command -a "pwd"  
-> ➜  ~ vagrant | CHANGED | rc=0 >>  
-> ➜  ~ /home/vagrant  
+vagrant | CHANGED | rc=0 >>  
+/home/vagrant  
 
