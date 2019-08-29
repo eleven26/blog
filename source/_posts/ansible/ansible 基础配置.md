@@ -62,6 +62,14 @@ test-vagrant 是分组名 (我们可以对某一组服务器执行某个命令)
 
 vagrant 是 Host 
 
+不使用 .ssh/config 的 hosts 文件配置写法：在 hosts 里面每一行指定 hostname、user 等信息，如
+
+```
+testserver ansible_host=127.0.0.1 ansible_port=2222\
+  ansible_user=vagrant\
+  ansible_private_key_file=.vagrant/machines/default/virtualbox/private_key
+```
+
 
 ### 测试 
 
@@ -70,6 +78,8 @@ ansible vagrant -m command -a "pwd"
 ```
 
 > ➜  ~ ansible vagrant -m command -a "pwd"
+
 vagrant | CHANGED | rc=0 >>
+
 /home/vagrant
 
