@@ -77,7 +77,7 @@ testserver ansible_host=127.0.0.1 ansible_port=2222\
 ansible vagrant -m command -a "pwd"
 ```
 
-> ➜  ~ ansible vagrant -m command -a "pwd"
-> vagrant | CHANGED | rc=0 >>
-> /home/vagrant
+> ➜  ~ ansible vagrant -m command -a "pwd"  
+vagrant | CHANGED | rc=0 >>  
+/home/vagrant  
 
