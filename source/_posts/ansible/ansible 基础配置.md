@@ -1,7 +1,7 @@
 ---
 title: ansible 基础配置
 date: 2019-08-29 08:39:00
-tags: [nginx]
+tags: [ansible]
 ---
 
 
