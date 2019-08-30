@@ -156,4 +156,29 @@ ansible testserver -a uptime
 ansible testserver -a "tail -f /var/log/dmesg"
 ```
 
+如果需要使用 root 来执行，需要传入参数 -b 告诉 Ansible 使用 sudo 以 root 权限来执行。
+
+例如，访问 /var/log/syslog 需要使用 root 权限：
+
+```bash
+ansible testserver -b -a "tail /var/log/syslog"
+``` 
+
+可以看到，Ansible 在运行的时候也会写入 syslog。
+
+在使用 ansible 命令行工具的时候，并不仅限于 ping 和 command 模块。可以使用任何你喜欢的模块。例如，可以像这样在 Ubuntu 上安装 Nginx：
+
+```bash
+ansible testserver -b -m apt -a name=Nginx
+```
+
+如果安装 Nginx 失败，可能需要更新一下软件包列表。告诉 Ansible 在安装软件包之前执行等同于 `apt-get update` 的操作，需要将参数从 name=Nginx 变更为 name=Nginx update_cache=yes。
+
+可以按照如下操作重启 Nginx：
+
+```bash
+ansible testserver -b -m service -a "name=nginx state=restarted"
+```
+
+因为只有 root 才可以安装 Nginx 软件包和重启服务，所以需要添加 -b 参数来使用 sudo
 
