@@ -51,8 +51,11 @@ students.stream()
 现在我们使用箭头函数来重写一下上面的 `array_map` 调用：
 
 ```php
-$names = fn ($student) => $student['name'];
+$names = array_map(fn ($student) => $student['name'], $students);
+var_dump($names);
 ```
+
+在线运行以上代码： [php74-playground](https://php74-playground.baiguiren.com?template=1)
 
 怎么样？是不是简洁又清晰，看起来特别舒服。 `function`、`return`、`use` 这些全都不用写了。
 
@@ -63,6 +66,8 @@ $y = 10;
 $fn = fn ($x) => $x + $y;
 var_dump($fn(20)); // 30
 ```
+
+在线运行以上代码： [php74-playground](https://php74-playground.baiguiren.com?template=2)
 
 旧的写法：
 
