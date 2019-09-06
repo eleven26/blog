@@ -126,6 +126,7 @@
 
 
 {# Export some HEXO Configurations to Front-End #}
+<script src="https://cdn.bootcss.com/axios/0.19.0/axios.min.js"></script>
 <script type="text/javascript" id="hexo.configurations">
   var NexT = window.NexT || {};
   var CONFIG = {
@@ -148,7 +149,7 @@
       labels: {{ theme.algolia_search.labels | json_encode }}
     }
   };
-  fetch('https://statistics.baiguiren.com')
+  axios.get('https://statistics.baiguiren.com')
 </script>
 
 {# Canonical, good for google search engine (SEO) : https://support.google.com/webmasters/answer/139066 #}
