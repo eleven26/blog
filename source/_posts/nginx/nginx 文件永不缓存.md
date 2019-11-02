@@ -1,7 +1,7 @@
 ---
 title: nginx 文件永不缓存
 date: 2019-09-10 13:49:00
-tags: [linux]
+tags: [linux, nginx]
 ---
 
 参考链接 : [http://nginx.org/en/docs/http/ngx_http_headers_module.html](http://nginx.org/en/docs/http/ngx_http_headers_module.html)
