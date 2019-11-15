@@ -1,5 +1,5 @@
 ---
-title: git clone fatal: Unable to read current directory.md
+title: git clone fatal Unable to read current directory.md
 date: 2019-10-23 09:19:30
 tags: Git
 ---
