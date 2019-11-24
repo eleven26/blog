@@ -92,5 +92,29 @@ Binding：绑定。RabbitMQ 中通过绑定将交换器与队列关联起来，�
 RoutingKey 和 BindingKey
 
 ```
+channel.exchangeDeclare(EXCHANGE_NAME, "direct", true, false, null);
+channel.queueDeclare(QUEUE_NAME, true, false, false, null);
+channel.queueBind(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
+String message = "Hello World!";
+channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBytes());
 ```
+
+以上代码声明了一个 direct 类型的交换器，然后将交换器和队列绑定起来。注意这里使用的字样是 "ROUTING_KEY"，在本该使用
+BindingKey 的 channel.queueBind 方法中却和 channel.basicPublish 方法同样使用了 RoutingKey，这样做的潜台词是：
+这里的 RoutingKey 和 BindingKey 是同一个东西。在 direct 交换器类型下，RoutingKey 和 BindingKey 需要完全匹配才能使用，
+所以上面的代码中采用了这种写法会显得更方便。
+
+但是在 topic 交换器类型下，RoutingKey 和 BindingKey 之间需要做模糊匹配，两者并不是相同的。
+
+BindingKey 其实也属于路由键中的一种，官方解释为：the routing key to use for the binding。
+可以翻译为：在绑定的时候使用的路由键。大多数时候，包括官方文档和 RabbitMQ Java API 中都把 BindingKey 和 RoutingKey
+看做 RoutingKey，为了避免混淆，我们可以这么理解：
+
+* 在使用绑定的时候，其中需要的路由键是 BindingKey。涉及的客户端方法如：
+channel.exchangeBind、channel.QueueBind，对应的 AMQP 命令为 Exchange.Bind、Queue.Bind
+
+* 在发送消息的时候，其中需要的路由键是 RoutingKey。涉及的客户端方法如
+channel.basicPublish，对应的 AMQP 命令为 Basic.Publish。
+
+由于某些历史的原因，大多数情况下习惯性地将 BindingKey 写成 RoutingKey，尤其是在使用 direct 类型地交换器地时候。
 
