@@ -236,4 +236,190 @@ void queueDeclareNoWait(String queue, boolean durable, boolean exclusive,
     boolean autoDelete, Map<String, Object> arguments) throws IOException;
 ```
 
-方法的返回值
+方法的返回值也是 void，表示不需要服务端的任何返回。同样也需要注意，在调用完 `queueDeclareNoWait` 之后，紧接着使用声明的队列时有可能会发生异常情况。
+
+同样这里还有一个 `queueDeclarePassive` 的方法，也比较常用。这个方法用来检测相应的队列是否存在。
+如果存在则正常返回，如果不存在则抛出异常：404 channel exception，同时 Channel 也会被关闭。方法定义如下：
+
+`Queue.DeclareOk queueDeclarePassive(String queue) throws IOException;`
+
+与交换器对应，关于队列也有删除的相应方法：
+
+(1) `Queue.DeleteOk queueDelete(String queue) throws IOException;`
+
+(2) `Queue.DeleteOk queueDelete(String queue, boolean ifUnused, boolean ifEmpty) throws IOException;`
+
+(3) `void queueDeleteNoWait(String queue, boolean ifUnused, boolean ifEmpty) throws IOException;`
+
+其中 queue 表示队列的名称，ifEmpty 设置为 true 表示在队列为空的情况下才能够删除。
+
+与队列相关的还有一个有意思的方法 - queuePurge，区别于 queueDelete，这个方法用来清空队列中的内容，而不删除队列本身，具体定义如下：
+
+`Queue.PurgeOk queuePurge(String queue) throws IOException;`
+
+
+### queueBind 方法详解
+
+将队列和交换器绑定的方法如下，可以与前两节中的方法定义进行类比。
+
+(1) `Queue.BindOk queueBind(String queue, String exchange, String routingKey) throws IOException;`
+
+(2) `Queue.BindOk queueBind(String queue, String exchange, String routingKey, Map<String, Object> arguments) throws IOException;`
+
+(3) `void queueBindNoWait(String queue, String exchange, String routingKey, Map<String, Object> arguments) throws IOException;`
+
+方法中涉及的参数详解。
+
+* queue：队列名称
+
+* exchange：交换器名称
+
+* routingKey：用来绑定队列和交换器的路由键
+
+* arguments：定义绑定的一些参数
+
+不仅可以将队列和交换器绑定起来，也可以将已经被绑定的队列和交换器进行解绑。具体方法可以参考如下：
+
+(1) `Queue.UnbindOk queueUnbind(String queue, String exchange, String routingKey) throws IOException;`
+
+(2) `Queue.UnbindOk queueUnbind(String queue, String exchange, String routingKey, Map<String, Object> arguments) throws IOException;`
+
+
+### exchangeBind 方法详解
+
+我们不仅可以将交换器与队列绑定，也可以将交换器与交换器绑定，后者和前者的用法如出一辙，相应的方法如下：
+
+(1) `Exchange.BindOk exchangeBind(String destination, String source, String routingKey) throws IOException;`
+
+(2) `Exchange.BindOk exchangeBind(String destination, String source, String routingKey, Map<String, Object> arguments) throws IOException;`
+
+(3) `void exchangeBind(String destination, String source, String routingKey, Map<String, Object> arguments) throws IOException;`
+
+绑定之后，消息从 source 交换器转发到 destination 交换器，某种程度上来说 destination 交换器可以看作一个队列。
+
+```
+channel.exchangeDeclare("source", "direct", false, true, null);
+channel.exchangeDeclare("destination", "fanout", false, true, null);
+channel.exchangeBind("destination", "source", "exKey");
+channel.queueDeclare("queue", false, false, true, null);
+channel.queueBind("queue", "destination", "");
+channel.basicPublish("source", "exKey", null, "exToExDemo".getBytes());
+```
+
+生产者发送消息至交换器 source 中，交换器 source 根据路由键找到与其匹配的另一个交换器 destination，并把消息转发到 destination 中，
+进而存储在 destination 绑定的队列 queue 中。
+
+![10](/images/rabbitmq/10.png)
+
+
+### 何时创建
+
+RabbitMQ 的消息存储在队列中，交换器的使用并不真正耗费服务器的性能，而队列会。如果要衡量 RabbitMQ 当前的 QPS 只需看队列的即可。
+在实际业务应用中，需要对所创建的队列的流量、内存占用及网卡占用有一个清晰的认知，预估其平均值和峰值，以便在固定硬件资源的情况下进行合理有效的分配。
+
+根据 RabbitMQ 官方建议，生产者和消费者都应该尝试创建（这里指声明操作）队列。
+这是一个很好的建议，但不适用于所有的情况。如果业务本身在架构之初已经充分地预估了队列地使用情况，
+完全可以在业务程序上线之前在服务器上创建好，这样业务程序也可以免去声明地过程，直接使用即可。
+
+预先创建好资源还有一个好处是，可以确保交换器和队列之间正确地绑定匹配。
+很多时候，由于人为因素、代码缺陷等，发送消息地交换器并没有绑定任何队列，那么消息将会丢失；
+或者交换器绑定了某个队列，但是发送消息的时候路由键无法与现存的队列匹配，那么消息也会丢失。
+当然可以配合 mandatory 参数或者备份交换器来提高程序的健壮性。
+
+与此同时，预估好队列的使用情况非常重要，如果在后期运行过程中超过预期的阈值，可以根据实际情况对当前集群进行扩容或者将相应的队列
+迁移到其他集群。迁移的过程也可以对业务程序完全透明。此种方法也更有利于开发和运维分工，便于相应的资源管理。
+
+如果集群资源充足，而即将使用的队列所占用的资源又在可控的范围之内，为了增加业务程序的灵活性，也完全可以在业务程序中声明队列。
+
+
+## 发送消息
+
+如果要发送一个消息，可以使用 Channel 类的 basicPublish 方法，比如发送一条内容为 "Hello World!" 的消息，参考如下：
+
+```
+byte[] messageBodyBytes = "Hello, World!".getBytes();
+channel.basicPublish(exchangeName, routingKey, null, messageBodyBytes);
+```
+
+为了更好地控制发送，可以使用 mandatory 这个参数，或者可以发送一些特定属性的信息：
+
+```
+channel.basicPublish(exchangeName, routingKey, mandatory,
+        MessageProperties.PERSISTENT_TEXT_LPAIN,
+        messageBodyBytes);
+```
+
+上面这行代码发送了一条消息，这条消息的投递模式（delivery mode）设置为 2，即消息会被持久化（即存入磁盘）在服务器中。
+同时这条消息的优先级（priority）设置为 1，content-type 为 "text/plain"。可以自己设定消息的属性：
+
+```
+channel.basicPublish(exchangeName, routingKey,
+        new AMQP.BasicProperties.Builder()
+        .contentType("text/plain")
+        .deliveryMode(2)
+        .priority(1)
+        .userId("hidden")
+        .build(),
+        messageBodyBytes);
+```
+
+也可以发送一条带有 headers 的消息：
+
+```
+Map<String, Object> headers = new HashMap<String, Object>();
+headers.put("location", "here");
+headers.put("time", "today");
+channel.basicPublish(exchangeName, routingKey,
+    new AMQP.BaiscProperties.Builder()
+    .builder(headers)
+    .build(),
+    messageBodyBytes);
+```
+
+还可以发送一条带有过期时间（expiration）的消息：
+
+```
+channel.basicPublish(exchangeName, routingKey,
+    new AMQP.BasicProperties.Builder()
+    .expiration("60000")
+    .build()
+    .messageBodyBytes);
+```
+
+对于 basicPublish 而言，有几个重载方法：
+
+(1) `void basicPublish(String exchange, String routingKey, BasicProperties props, byte[] body) throws IOException;`
+
+(2) `void basicPublish(String exchange, String routingKey, boolean mandatory, BasicProperties props, byte[] body) throws IOException;`
+
+(3) `void basicPublish(String exchange, String routingKey, boolean mandatory, boolean immediate, BasicProperties props, byte[] body) throws IOException;`
+
+对应的具体参数解释如下所述。
+
+* exchange：交换器名称，指明消息发送到哪个交换器中。如果设置为空字符串，则消息会被发送到 RabbitMQ 默认的交换器中。
+
+* routingKey：路由键，交换器根据路由键将消息存储到相应的队列之中。
+
+* props：消息的基本属性集，其包含 14 个属性成员，分别有 contentType、contentEncoding、headers(Map<String, Object>)、
+deliveryMode、priority、correlationId、replyTo、expiration、messageId、timestamp、type、userId、appId、clusterId。
+
+* byte[] body：消息体（payload），真正需要发送的消息。
+
+
+## 消费消息
+
+RabbitMQ 的消费模式分两种：推（push）和拉（pull）模式。推模式采用 Basic.Consume 进行消费，而拉模式是调用 Basic.Get 进行消费。
+
+### 推模式
+
+在推模式中，可以通过持续订阅的方式来消费消息，使用到的相关类有：
+
+```
+import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.DefaultConsumer;
+```
+
+接收消息一般通过实现 Consumer 接口或者继承 DefaultConsumer 类来实现。当调用与 Consumer 相关的 API 方法时，不同的订阅采用不同的消费者标签（consumerTag）
+来区分彼此，在同一个 Channel 中的消费者也需要通过唯一的消费者标签以作区分，关键消费者代码如下：
+
+
