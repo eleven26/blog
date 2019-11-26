@@ -271,3 +271,329 @@ DLX 配合 TTL 使用还可以实现延迟队列的功能。
 ![16](/images/rabbitmq/16.png)
 
 
+
+## 优先级队列
+
+优先级队列，顾名思义，具有高优先级的队列具有更高的优先权，优先级高的消息具备优先被消费的特权。
+
+可以通过设置队列的 `x-max-priiority` 参数来实现。
+
+```
+Map<String, Object> args = new HashMap<String, Object>();
+args.put("x-max-priotity", 10);
+channel.queueDeclare("queue.priotity", true, false, false, args);
+```
+
+上面的代码演示的是如何配置一个队列的最大优先级。在此之后，需要在发送时在消息中设置消息当前的优先级。如下：
+
+```
+AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties.Builder();
+builder.priority(5);
+AMQP.BasicProperties properties = builder.build();
+channel.basicPublish("exchange_priority", "rk_priority", properties, "messages".getBytes());
+```
+
+上面的代码中设置消息的优先级为 5。默认最低为 0，最高为队列设置的最大优先级。
+优先级高的消息可以被优先消费，这个也是有前提的：如果在消费者的消费速度大于生产者的速度且 Broker 中没有消息堆积的情况下，
+对发送的消息设置优先级也就没有什么实际意义。因为在生产者刚发送完一条消息就被消费者消费了，那么就相当于 Broker 中至多只有一条消息，
+对于单条消息来说优先级是没有什么意义的。
+
+
+
+## RPC 实现
+
+RPC，是 Remote Procedure Call 的简称，即远程过程调用。它是一种通过网络从远程计算机上请求服务，而不需要了解底层网络的技术。
+RPC 的主要功能是让构建分布式计算更容易，在提供强大的远程调用能力时不损失本地调用的语义简洁性。
+
+通俗点来说，假设有两台服务器 A 和 B，一个应用部署在 A 服务器上，想要调用 B 服务器上应用提供的函数或者方法，
+由于不在同一个内存空间，不能直接调用，需要通过网络来表达调用的语义和传达调用的数据。
+
+RPC 的协议有很多，比如最早的 CORBA、Java RMI 甚至还有 Restful API。
+
+一般在 RabbitMQ 中进行 RPC 是很简单的。客户端发送给请求消息，服务端回复响应的消息。
+为了接收响应的消息，我们需要在请求消息中发送一个回调队列，可以使用默认的队列，具体示例代码如下：
+
+```
+String callbackQueueName = channel.queueDeclare().getQueue();
+BasicProperties props = new BasicProperties.Builder().replyTo(callbackQueueName).build();
+channel.basicPublish("", "rpc_queue", props, message.getBytes());
+// the code to read a response message from the callback_queue...
+```
+
+对于代码涉及的 BasicProperties 这个类，这里用到了两个属性：
+
+* replyTo：通常用来设置一个回调队列
+
+* correlationId：用来关联请求（request）和其调用 RPC 之后的回复（response）
+
+如果像上面的代码中一样，为每个 RPC 请求创建一个回调队列，则是非常低效的。
+但是幸运的是这里有一个通用的解决方案 - 可以为每个客户端创建一个单一的回调队列。
+
+这样就产生了一个新的问题，对于回调队列而言，在其接收到一条回复的消息之后，它并不知道这条消息应该和哪一个请求匹配，
+这里就用到 correlationId 这个属性了，我们应该为每一个请求设置一个唯一的 correlationId。
+之后在回调队列接收到回复的消息时，可以根据这个属性匹配到相应的请求。
+如果回调队列接收到一条未知 correlationId 的回复消息，可以简单地将其丢弃。
+
+你可能会问，为什么要将回调队列中的的位置消息丢弃而不是仅仅将其看作失败？这样可以针对这个失败做一些弥补措施。
+参考下图，考虑这样一种情况，RPC 服务器可能在发送给回调队列并且在确认收到请求的消息（rpc_queue中的消息）之后挂掉了，
+那么只需重启下 RPC 服务器即可，RPC 服务会重新消费 rpc_queue 队列中的请求，这样就不会出现 RPC 服务端未处理请求的情况。
+这里的回调队列可能会收到重复消息的情况，这需要客户端能够优雅地处理这种情况，并且 RPC 请求也需要保证其本身是幂等的
+（消费者消费消息一般是先处理业务逻辑，再使用 Basic.Ack 确认已接收到消息以防止消息不必要地丢失）。
+
+![17](/images/rabbitmq/17.png)
+
+根据上图，RPC 地处理流程如下：
+
+（1）当而客户端启动时，创建要给匿名地回调队列（名称由 RabbitMQ 自动创建）
+
+（2）客户端为 RPC 请求设置两个属性：replyTo 用来告知 RPC 服务端回复请求时地目的队列，即回调队列；correlationId 用来标记一个请求
+
+（3）请求被发送到 rpc_queue 队列中
+
+（4）RPC 服务端监听 rpc_queue 队列中地请求，当请求到来时，服务端会处理并且把带有结果的消息发送给客户端。
+接收的队列就是 replyTo 设定的回调队列。
+
+（5）客户端监听回调队列，当有消息时，检查 correlationId 属性，如果与请求匹配，那就是结果了。
+
+服务端实例代码：
+
+```
+public class RPCServer {
+    private static final String RPC_QUEUE_NAME = "rpc_queue";
+
+    public static void main(String[] args) throws Exception {
+        // ... 创建 Connection 和 Channel
+        channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, null);
+        channel.basicQos(1);
+        System.out.println(" [x] Awaiting RPC requests");
+
+        Consumer consumer = new DefaultConsumer(channel) {
+            @Override
+            public void handleDelivery(String consumerTag,
+                                        Envelope enveloper,
+                                        AMQP.BasicProperties properties,
+                                        byte[] body) throws IOException {
+                AMQP.BasicProperties replyProps = new AMQP.BasicProperties
+                    .builder()
+                    .correlationId(properties.getCorrelationId())
+                    .build();
+                String response = "";
+                try {
+                    String message = new String(body, "UTF-8");
+                    int n = Integer.parseInt(message);
+                    System.out.println(" [.] fib(" + message + ")");
+                    response += fib(n);
+                } catch (RuntimeException e) {
+                    System.out.println(" [.] " + e.toString());
+                } finally {
+                    channel.basicPublish("", properties.getReplyTo(),
+                        replyProps, response.getBytes("UTF-8"));
+                    channel.basicAck(envelope.getDeliveryTag(), false);
+                }
+            }
+        };
+
+        channel.basicConsume(RPC_QUEUE_NAME, false, consumer);
+    }
+
+    private static int fib(int n) {
+        if (n == 0) return 0;
+        if (n == 1) return 1;
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+```
+
+RPC 客户端关键代码：
+
+```
+public class RPCClient {
+    private Connection connection;
+    private Channel channel;
+    private String requestQueueName = "rpc_queue";
+    private String replyQueueName;
+    private QueueingCunsumer consumer;
+
+    public RPCClient() throws IOException, TimeoutException {
+        // ... 创建 Connection 和 Channel
+        replyQueueName = channal.queueDeclare().getQueue();
+        consumer = new QueueingCunsumer(channel);
+        channel.basicConsume(replyQueueName, true, consumer);
+    }
+
+    public String call(String message) throws IOException,
+        ShuwdownSignalException, ConsumerCancelledException,
+        InterruptedException {
+        String rsponse = null;
+        String corrId = UUID.randomUUID().toString();
+
+        BasicProperties props = new BasicProperties.Builder()
+            .correlationId(corrId)
+            .replyTo(replyQueueName)
+            .build();
+        channel.basicPublish("", requestQueueName, props, message.getBytes());
+
+        while (true) {
+            QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+            if (delivery.getProperties().getCorrelationId().equals(corrId)) {
+                response = new String(delivery.getBody());
+                break;
+            }
+        }
+
+        return response;
+    }
+
+    public void close() throws Exception {
+        connection.close();
+    }
+
+    public static void main(String[] args) throws Exception {
+        RPCClient fibRpc = new RPCClient();
+        System.out.println(" [x] Requesting fib(30)");
+        String response = fibRpc.call("30");
+        System.out.println(" [.] Got '" + response + "'");
+        fibRpc.close();
+    }
+}
+```
+
+
+
+## 持久化
+
+"持久化" 这个词在前面的篇幅中多次提及，持久化可以提高 RabbitMQ 的可靠性，以防在异常情况（重启、关闭、宕机等）下的数据丢失。
+RabbitMQ 的持久化分为三个部分：交换器的持久化、队列的持久化和消息的持久化。
+
+交换器的持久化是通过在声明交换器时将 durable 参数置为 true 实现的。如果交换器不设置持久化，那么在 RabbitMQ 重启之后，
+相关的交换器元数据会丢失，不过消息不会丢失，只是不能将消息发送到这个交换器中了。对于一个长期使用的交换器来说，交易将其置为持久化的。
+
+队列的持久化是通过在声明队列时将 durable 参数置为 true 实现的。
+如果队列不设置持久化，那么在 RabbitMQ 服务重启之后，相关队列的元数据会丢失，此时数据也会丢失。
+
+队列的持久化能保证其本身的元数据不会因异常情况而丢失，但是并不能保证内部所存储的消息不会丢失。
+要确保消息不会丢失，需要将其设置为持久化。
+通过将消息的投递模式（BasicProperties 中的 deliveryMode 属性）设置为 2 即可实现消息的持久化。
+前面示例中多次提及的 MessageProperties.PERSISTENT_TEXT_PLAIN 实际上是封装了这个属性：
+
+```
+public sttic final BasicProperties PERSISTENT_TEXT_PLAIN = 
+    new BasicProperties("text/plain",
+                        null,
+                        null,
+                        2, // deliveryMode
+                        null, null, null, null,
+                        null, null);
+```
+
+设置了队列和消息的持久化，当 RabbitMQ 服务重启之后，消息依旧存在。
+单单只设置队列持久化，重启之后消息会丢失；单单只设置消息的持久化，重启之后队列消息，继而消息也丢失。
+单单设置消息持久化而不设置队列的持久化显得毫无意义。
+
+> 可以将所有的消息都设置为持久化，但是这样会严重影响 RabbitMQ 的性能，写入磁盘的速度比写入内存的速度慢得不只一点点。
+> 对于可靠性不是那么高的消息可以不采用持久化处理以提高整体的吞吐量。
+> 在选择是否要将消息持久化时，需要在可靠性和吞吐量之间做一个权衡。
+
+将交换器、队列、消息都设置了持久化之后就能百分百保证数据不丢失了吗？答案是否定的。
+
+首先从消费者来说，如果在订阅消费队列时时将 autoAck 设置为 true，那么当消费者接收到相关消息之后，还没来得及处理就宕机了，
+这样也算数据丢失。这种情况很好解决，将 autoAck 参数设置为 false，并进行手动确认。
+
+其次，在持久化的消息正确存入 RabbitMQ 之后，还需要有一段时间才能存入磁盘中。RabbitMQ 并不会为每条消息都进行同步存盘的处理，
+可能仅仅保存到操作系统缓存之中而不是物理磁盘之中。如果在这段时间内 RabbitMQ 服务节点发生了 宕机、重启 等异常情况，消息保存还没
+来得及落盘，那么这些消息将会丢失。
+
+这个问题怎么解决呢？这里可以引入 RabbitMQ 的镜像队列机制，相当于配置了副本，如果主节点在此特殊时间内挂掉，可以自动切换到从节点（slave），
+这样有效地保证了高可用性，除非整个集群都挂掉。虽然这样也不能完全保证 RabbitMQ 消息不丢失，但是配置了镜像队列要比没有配置镜像队列的
+可靠性要高很多，在实际生产环境中的关键业务队列一般都会设置镜像队列。
+
+还可以在发送端引入事务机制或者发送方确认机制来保证消息已经正确地发送并存储至 RabbitMQ 中，
+前提还要保证在调用 channel.basicPublish 方法的时候交换器能够将消息正确地路由到相应地队列之中。
+
+
+
+## 生产者确认
+
+在使用 RabbitMQ 的时候，可以通过消息持久化操作来解决因为服务器的异常崩溃而导致的消息丢失，初次之外，我们还会遇到一个问题，
+当消息的生产者将消息发送出去之后，消息到底有没有正确地到达服务器呢？如果不进行特殊配置，默认情况下发送消息的操作是不会返回任何
+消息给生产者的，也就是默认情况下生产者是不知道消息有没有正确地到达服务器。如果在消息到达服务器之前已经丢失，持久化操作也解决不了
+这个问题，因为消息根本没有到达服务器，何谈持久化？
+
+RabbitMQ 针对这个问题，提供了两种解决方式：
+
+* 通过事务机制实现
+
+* 通过发送方确认（publisher confirm）机制实现
+
+
+### 事务机制
+
+RabbitMQ 客户端中与事务机制相关地方法有三个：`channel.txSelect`、`channel.txCommit`、`channel.txRollBack`。
+`channel.txSelect` 用于将当前地信道设置成事务模式，`channel.txCommit` 用于提交事务，`channel.txRollBack` 用于事务回滚。
+在通过 `channel.txSelect` 方法开启事务之后，我们便可以发布消息给 RabbitMQ 了，如果事务提交成功，则消息一定到达了 RabbitMQ 中，
+如果在事务提交执行之前由于 RabbitMQ 异常崩溃或者其他原因抛出异常，这个时候我们便可以将其捕获，进而通过执行
+`channel.txRollBack` 方法来实现事务回滚。注意这里的 RabbitMQ 中的事务机制与大多数数据库中的事务概念并不相同，需要注意区分。
+
+关联示例代码：
+
+```
+channel.txSelect();
+channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY,
+    MessageProperties.PERSISTENT_TEXT_PLAIN,
+    "transaction message".getBytes());
+channel.txCommit();
+```
+
+![18](/images/rabbitmq/18.png)
+
+可以发现开启事务机制与不开启相比多了四个步骤：
+
+* 客户端发送 `Tx.Select`，将信道置为事务模式
+
+* Broker 回复 `Tx.SelectOk`，确认已将信道置为事务模式
+
+* 在发送完消息之后，客户端发送 `Tx.Commit` 提交事务
+
+* Broker 回复 `Tx.CommitOk`，确认事务提交
+
+上面所述的是正常情况下的事务机制运转过程，而事务回滚是什么样子呢？
+
+```
+try {
+    channel.txSelect();
+    channel.basicPublish(exchange, routingKey,
+            MessageProperties.PERSISTENT_TEXT_PLAIN, msg.getBytes());
+    int result = 1 / 0;
+    channel.txCommit();
+} catch (Exception e) {
+    e.printStackTrace();
+    channel.txRollback();
+}
+```
+
+![19](/images/rabbitmq/19.png)
+
+如果要发送多条消息，则将 channel.basicPublish 和 channel.txCommit 等方法包裹进循环内即可：
+
+```
+channel.txSelect();
+
+for (int i = 0; i < LOOP_TIMES; i++) {
+    try {
+        channel.basicPublish("exchange", "routingKey", null, ("message" + i).getBytes());
+        channel.txCommit();
+    } catch (Exception e) {
+        e.printStackTrace();
+        channel.txRollback();
+    }
+}
+```
+
+事务确实能够解决消息发送方和 RabbitMQ 之间消息确认的问题，只有消息成功被 RabbitMQ 接收，事务才能提交成功，否则便可在捕获异常之后
+进行事务回滚，与此同时可以进行消息重发。但是事务机制会 "吸干" RabbitMQ 的性能，那么有没有更好的方法既能保证消息发送方确认消息已经
+正确到达，又能基本上不带来性能上的损失呢？从 AMQP 协议层面来看并没有更好的办法，但是 RabbitMQ 提供了一个改进方案，即发送发确认机制。
+
+
+### 发送方确认机制
+
+
