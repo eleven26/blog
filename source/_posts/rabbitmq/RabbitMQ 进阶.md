@@ -596,4 +596,81 @@ for (int i = 0; i < LOOP_TIMES; i++) {
 
 ### 发送方确认机制
 
+前面介绍了 RabbitMQ 可能会遇到的一个问题，即消息发送方（生产者）并不知道消息是否真正地到达了 RabbitMQ。
+随后了解到在 AMQP 协议层面提供了事务机制来解决这个问题，但是采用事务机制会严重降低 RabbitMQ 地消息吞吐量，
+这里就引入了一种轻量级地方式 - 发送方确认（publisher confirm）机制。
+
+生产者将信道置成 confirm（确认）模式，一旦信道进入 confirm 模式，所有在该信道上面的消息都会被指派一个唯一的 ID（从 1 开始），
+一旦消息被投递到所有匹配的队列之后，RabbitMQ 就会发送一个确认（Basic.Ack）给生产者（包含消息的唯一 ID），这就使得生产者
+知晓消息已经正确到达了目的地了。如果消息和队列是可持久化的，那么确认消息会在写入磁盘之后发出。
+RabbitMQ 回传给生产者的确认消息中的 deliveryTag 包含了确认消息的序号，此外 RabbitMQ 也可以设置 channel.basicAck 中的
+multiple 参数，表示这个序号之前的所有消息都已经得到了处理，可以参考下图。
+
+![20](/images/rabbitmq/20.png)
+
+事务机制在一条消息发送之后会使发送端阻塞，以等待 RabbitMQ 的回应，之后才能继续发送下一条消息。
+相比之下，发送方确认机制最大的好处在于它是异步的，一旦发布一条消息，生产者应用程序就可以在等信道返回确认的同时继续发送下一条消息，
+当消息最终得到确认之后，生产者应用程序便可以通过回调方法来处理该确认消息，如果 RabbitMQ 因为自身内部错误导致消息丢失，
+就会发送一条 nack（Basic.Nack）命令，生产者应用程序同样可以在回调方法中处理该 nack 命令。
+
+生产者通过调用 channel.confirmSelect 方法（即 Confirm.Select 命令）将信道设置为 confirm 模式，之后 RabbitMQ 会返回
+Confirm.Select-Ok 命令表示同意生产者将当前信道设置为 confirm 模式。所有被发送的后续消息都被 ack 或者 nack 一次，不会
+出现一条消息既被 ack 又被 nack 的情况，并且 RabbitMQ 也并没有对消息被 confirm 的快慢做任何保证。
+
+下面看一下 publisher confirm 机制：
+
+```
+try {
+    channel.confirmSelect(); // 将信道设置为 publisher confirm 模式
+    // 之后正常发送消息
+    channel.basicPublish("exchange", "routingKey", null,
+                        "publisher confirm test".getBytes());
+    if (!channel.waitForConfirms()) {
+        System.out.println("send message failed");
+    }
+} catch (InterruptdException e) {
+    e.printStackTrace();
+}
+```
+
+如果发送多条消息，只需要将 channel.basicPublish 和 channel.waitForConfirm 方法包裹在循环里面即可，可以参考事务机制，
+不过不需要把 channel.confirmSelect 方法包裹在循环内部。
+
+在 publisher confirm 模式下发送多条消息的 AMQP 协议流转过程可以参考下图：
+
+![21](/images/rabbitmq/21.png)
+
+对于 channel.waitForConfirms 而言，在 RabbitMQ 客户端它有四个同类方法：
+
+(1) `boolean waitForConfirms() throws InterruptedException;`
+
+(2) `boolean waitForConfirms(long timeout) throws InterruptedException, TimeoutException;`
+
+(3) `void waitForConfirmsOrDie() throws IOException, InterruptedException;`
+
+(4) `void waitForConfirmOrDie(long timeout) throws IOException, InterruptedException, TimeoutException;`
+
+如果信道没有开启 publisher confirm 模式，则调用任何 waitForConfirms 方法都会抛出异常。
+对于没有参数的 waitForConfirms 方法来说，其返回的条件是客户端收到了相应的 Basic.Ack/.Nack 或者被中断。
+参数 timeout 表示超时时间，一旦等待 RabbitMQ 回应超时就会抛出 TimeoutException 异常。
+两个 waitForConfirmsOrDie 方法在接收到 RabbitMQ 返回的 Basic.Nack 之后会抛出 java.io.IOException。
+业务代码可以根据自身的特权灵活地运用这四种方法来保障消息地可靠发送。
+
+注意要点：
+
+(1) 事务机制和 publisher confirm 机制两者是互斥的，不能共存。
+
+(2) 事务机制和 publisher confirm 机制确保的是消息能够正确地发送至 RabbitMQ，这里的 "发送至 RabbitMQ" 的含义是指消息被正确
+地发往至 RabbitMQ 的交换器，如果此交换器没有匹配的队列，那么消息也会丢失。所以在使用这两种机制的时候要确保所涉及的交换器能够有
+匹配的队列。更进一步地讲，发送方要配合 mandatory 参数或者备份交换器一起使用来提高消息传输地可靠性。
+
+publisher confirm 的优势在于并不一定需要同步确认。这里总结一下使用方式，总结有如下两种：
+
+* 批量 confirm 方法：每发送一批消息后，调用 channel.waitForConfirms 方法，等待服务器的确认返回
+
+* 异步 confirm 方法：提供一个回调方法，服务端确认了一条或者多条消息后客户端会回调这个方法进行处理。
+
+在批量 confirm 方法中，客户端程序需要定期或者定量（达到多少条），亦或两者结合起来调用 channel.waitForConfirms 来等待 RabbitMQ 的
+确认返回。相比前面示例中的普通 confirm 方法，批量极大地提升了 confirm 的效率，但是问题在于出现返回 Basic.Nack 或者超时情况时，
+客户端需要将这一批次的消息全部重发，这会带来明显的重复消息数量，并且当消息经常丢失时，批量 confirm 的性能应该是不升反降的。
 
