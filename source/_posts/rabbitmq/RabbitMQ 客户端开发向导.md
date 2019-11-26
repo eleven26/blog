@@ -422,4 +422,222 @@ import com.rabbitmq.client.DefaultConsumer;
 接收消息一般通过实现 Consumer 接口或者继承 DefaultConsumer 类来实现。当调用与 Consumer 相关的 API 方法时，不同的订阅采用不同的消费者标签（consumerTag）
 来区分彼此，在同一个 Channel 中的消费者也需要通过唯一的消费者标签以作区分，关键消费者代码如下：
 
+```
+boolean autoAck = false;
+channel.basicQos(64);
+channel.basicConsume(queueName, autoAck, "myConsumerTag",
+    new DefaultConsumer(channel) {
+        @Override
+        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+            String routingKey = envolope.getRoutineKey();
+            String contentType = properties.getContentType();
+            long deliveryTag = envelope.getDeliveryTag();
+            // (process the message components here...)
+            channel.basicAck(deliveryTag, false);
+        }
+    })
+```
 
+注意，上面代码中显式地设置 autoAck 为 false，然后在接收到消息之后进行显式 ack 操作（channel.basicAck），
+对于消费者来说这个设置是非常必要的，可以防止消息不必要地丢失。
+
+Channel 类中 basicConsume 方法有如下几种形式：
+
+(1) `String basicConsume(String queue, Consumer callback) throws IOException;`
+
+(2) `String basicConsume(String queue, boolean autoAck, Consumer ballback) throws IOException;`
+
+(3) `String basicConsume(String queue, boolean autoAck, Map<String, Object> arguments, Consumer callback) throws IOException;`
+
+(4) `String basicConsume(string queue, boolean autoAck, String consumerTag, Consumer callback) throws IOException;`
+
+(5) `String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive, Map<String, Object> arguments, Consumer callback) throws IOException;`
+
+其对应地参数说明如下所述：
+
+* queue：队列地名称
+
+* autoAck：设置是否自动确认。建议设置成 false，即不自动确认
+
+* consumerTag：消费者标签，用来区分多个消费者
+
+* noLocal：设置为 true 则表示不能将同一个 Connection 中生产者传送给这个 Connection 中的消费者
+
+* exclusive：设置是否排他
+
+* arguments：设置消费者的其它参数
+
+* callback：设置消费者的回调函数。用来处理 RabbitMQ 推送过来的消息，比如 DefaultConsumer，使用时需要重写（override）其中的方法。
+
+对于消费者客户端来说重写 handleDelivery 方法是十分方便的。更复杂的消费者客户端会重写更多的方法，具体如下：
+
+```
+void handleConsumeOk(String consumerTag);
+void handleCancelOk(String consumerTag);
+void handleCancel(String consumerTag) throws IOException;
+void handleShutdownSignal(String consumerTag, ShutdownSignalException sig);
+void handleRecoverOk(String consumerTag);
+```
+
+比如 `handleShutdownSignal` 方法，当 Channel 或者 Connection 关闭的时候会调用。
+再者，`handleConsumeOk` 方法会在其他方法之前调用，返回消费者标签。
+
+重写 `handleCancelOk` 和 `handleCancel` 方法，这样消费端可以在显式地或者隐式地取消订阅的时候调用。
+也可以通过 `channel.basicCancel` 方法来显式地取消一个消费者的订阅：
+
+```
+channel.basicCancel(consumerTag);
+```
+
+注意上面这行代码会首先触发 `handleConsumerOk` 方法，之后触发 `handleDelivery` 方法，最后才触发 `handleCancelOk` 方法。
+
+生产者一样，消费者客户端同样需要考虑线程安全的问题。
+消费者客户端的这些 callback 会被分配到与 Channel 不同的线程池上，这意味着消费者客户端可以安全地调用这些阻塞方法，
+比如 `channel.queueDeclare`、`channel.basicCancel` 等。
+
+每个 Channel 都有自己独立的线程。最常用的做法是一个 Channel 对应一个消费者，也就是意味着消费者彼此之间没有任何关联。
+当然也可以在一个 Channel 中维持多个消费者，但是要注意一个问题，如果 Channel 中的一个消费者一直在运行，那么其他
+消费者的 callback 会被 "耽搁"。
+
+
+### 拉模式
+
+通过 `channel.basicGet` 方法可以单条地获取消息，其返回值是 `GetResponse`。`Channel` 类的 `basicGet` 方法没有其他重载方法，只有：
+
+```
+GetResponse basicGet(String queue, boolean autoAck) throws IOException;
+```
+
+其中 queue 代表队列的名称，如果设置 autoAck 为 false，那么同样需要调用 channel.basicAck 来确认消息已被成功接收。
+
+拉模式关键代码：
+
+```
+GetResponse response = channel.basicGet(QUEUE_NAME, false);
+System.out.println(new String(response.getBody()));
+channel.basicAck(response,getEnvelope().getDeliveryTag(), false);
+```
+
+> `Basic.Consume` 将信道（channel）置为接收模式，直到取消队列的订阅为止。在接收模式期间，RabbitMQ 会不断地推送消息给消费者，
+> 当然推送消息的个数还是会受到 `Basic.Qos` 的限制。如果只想从队列获得单条消息而不是持续订阅，建议还是使用 `Basic.Get` 进行消费。
+> 但是不能将 `Basic.Get` 放在一个循环里来代替 `Basic.Consume`，这样做会严重影响 RabbitMQ 的性能。
+> 如果要实现高吞吐量，消费者理应使用 `Basic.Consume` 方法。
+
+![11](/images/rabbitmq/11.png)
+
+
+## 消费者的确认与拒绝
+
+为了保证消息从队列可靠地达到消费者，RabbitMQ 提供了消息确认机制（message acknowledgement）。
+消费者在订阅队列时，可以指定 autoAck，当 autoAck 等于 false 时，RabbitMQ 会等待消费者显式地回复确认信号后才从内存（或者磁盘）中移去消息。
+当 autoAck 为 true 时，RabbitMQ 会自动地把发送出去的消息置为确认，然后从内存（或磁盘）中删除，而不管消费者是否真正地消费了这些消息。
+
+采用消息确认机制后，只要设置 autoAck 参数为 false，消费者就有足够的时间处理消息，不用担心处理消息过程中消费者挂掉后消息丢失的问题，
+因为 RabbitMQ 会一直等到持有消息直到消费者显式调用 `Basic.Ack` 命令为止。
+
+当 autoAck 参数置为 false，对于 RabbitMQ 服务端而言，队列中的消息分成两个部分：
+一部分是等待投递给消费者的消息；一部分是已经投递给消费者，但是还没有收到消费者确认信号的消息。
+如果 RabbitMQ 一直没有收到消费者的确认信号，并且消费此消息的消费者已经断开连接，则 RabbitMQ 会安排该消息重新进入队列，
+等待下一个消费者，当然也有可能还是原来的那个消费者。
+
+RabbitMQ 不会为未确认的消息设置过期时间，它判断此消息是否需要重新投递给消费者的唯一依据是消费该消息的消费者连接是否已经断开，
+这么设计的原因是 RabbitMQ 允许消费者消费一条消息的时间可以很久很久。
+
+RabbitMQ 的 Web 管理平台上可以看到当前队列中的 "Ready" 状态和 "Unacknowledged" 状态的消息数，分别对应上文中的
+等待投递给消费者的消息数和已经投递给消费者但是未收到确认信号的消息数。
+
+在消费者收到消息后，如果想明确拒绝当前的消息而不是确认，可以使用 `Basic.Reject` 这个命令，
+消费者客户端可以调用与其对应的 `channel.basicReject` 方法来告诉 RabbitMQ 拒绝这个消息。
+
+Channel 类中的 basicReject 方法定义如下：
+
+```
+void basicReject(long deliveryTag, boolean requeue) throws IOException;
+```
+
+其中 deliveryTag 可以看作消息的编号，它是一个 64 位的长整型。
+如果 requeue 为 true，则 RabbitMQ 会重新将这条消息存入队列，以便可以发给下一个订阅的消费者；
+如果 requeue 为 false，则 RabbitMQ 立即把消息从队列中删除，而不是把它发送给新的消费者。
+
+Basic.Reject 命令一次只能拒绝一条消息，如果想要批量拒绝消息，则可以使用 Basic.Nack 这个命令。
+消费者客户端可以调用 channel.basicNack 方法来实现，方法定义如下：
+
+```
+void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException;
+```
+
+其中 deliveryTag 和 requeue 的含义可以参考 basicReject 方法。
+multiple 参数设置为 false 则表示拒绝编号为 deliveryTag 的这一条消息，这时候 basicNack 和 basicReject 方法一样；
+multiple 设置为 true 则表示拒绝 deliveryTag 编号之前所有未被当前消费者确认的消息。
+
+> 将 `channel.basicReject` 或者 `channel.Nack` 中的 requeue 设置为 false，可以启用 "死信队列" 的功能。
+> 死信队列可以通过检测被拒绝或者未送达的消息的消息来追踪问题。
+
+对应 requeue，AMQP 中还有一个命令 `Basic.Recover` 具备可重入队列的特性。其对应的客户端方法为：
+
+(1) `Basic.RecoverOk basicRecover() throws IOException;`
+
+(2) `Basic.RecoverOk basicRecover(boolean requeue) throws IOException;`
+
+这个 `channel.basicRecover` 方法用来请求 RabbitMQ 重新发送还未被确认的消息。
+如果 requeue 参数设置为 true，则未被确认的消息会被重新加入到队列中，这样对于同一条消息来说，可能会被分配给与之前不同的消费者。
+如果 requeue 参数设置为 false，那么同一条消息会被分配给与之前相同的消费者。
+默认情况下，如果不设置 requeue 这个参数，相当于 `channel.basicRecover(true)`，即 requeue 默认为 true。
+
+
+## 关闭连接
+
+在应用程序使用完之后，需要关闭连接，释放资源：
+
+```
+channel.close();
+connection.close();
+```
+
+显式地关闭 Channel 是个好习惯，但这不是必须但，在 Connection 关闭的时候，Channel 也会自动关闭。
+
+AMQP 协议中的 Connection 和 Channel 采用同样的方式来管理网络失败、内部错误和显式地关闭连接。Connection 和 Channel 所具备的生命周期如下所述。
+
+* Open：开启状态，代表当前对象可以使用
+
+* Closing：正在关闭状态。当前对象被显式地通知关闭方法（shutdown），这样就产生了一个关闭请求让其内部对象进行相应的操作，并等待这些关闭操作的完成。
+
+* Closed：已经关闭的状态。当前对象已经接收到所有的内部对象已完成关闭动作的通知，并且其也关闭了自身。
+
+Connection 和 Channel 中，与关闭相关的方法有 `addShutdownListener(ShutdownListener listener)` 和 `removeShutdownListener(ShutdownListener listener)`。
+当 Connection 或者 Channel 的状态转变为 Closed 的时候会调用 ShutdownListener。而且如果将一个 ShutdownListener 注册到一个已经处于 Closed
+状态的对象时，会立刻调用 ShutdownListener。
+
+getCloseReason 方法可以让你知道对象关闭的原因；isOpen 方法检测对象当前是否处于开启状态；close(int closeCode, String closeMessage) 方法显式地通知当前对象执行关闭操作。
+
+```
+import com.rabbitmq.client.ShutdownSignalException;
+import com.rabbitmq.client.ShutdownListener;
+
+connection.addShutdownListener(new ShutdownListener() {
+    public void shutdownCompleted(ShutdownSignalException cause)
+    {
+        // ...
+    }
+})
+```
+
+当触发 ShutdownListener 的时候，就可以获取到 ShutdownSignalException，这个 ShutdownSignalException 包含了关闭的原因，
+这里原因也可以通过调用前面所提及的 getCloseReason获取。
+
+ShutdownSignalException 提供了多个方法来分析关闭的原因。
+isHardError 方法可以知道是 Connection 的还是 Channel 的错误；getReason 方法可以获取 cause 相关的信息：
+
+```
+public void shutdownCompleted(ShutdownSignalException cause)
+{
+    if (cause.isHardError()) {
+        Connection conn = (Connection) cause.getReference();
+        if (!cause.isInitiatedByApplication()) {
+            Method reason = cause.getReason();
+        }
+    } else {
+        Channel ch = (Channel)cause.getReference();
+    }
+}
+```
