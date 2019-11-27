@@ -674,3 +674,266 @@ publisher confirm 的优势在于并不一定需要同步确认。这里总结�
 确认返回。相比前面示例中的普通 confirm 方法，批量极大地提升了 confirm 的效率，但是问题在于出现返回 Basic.Nack 或者超时情况时，
 客户端需要将这一批次的消息全部重发，这会带来明显的重复消息数量，并且当消息经常丢失时，批量 confirm 的性能应该是不升反降的。
 
+```
+try {
+    channel.confirmSelect();
+    int MsgCount = 0;
+    while (true) {
+        channel.basicPublish("exchange", "routingKey",
+                            null, "batch confirm test".getBytes());
+        // 将发送出去的消息存入缓存中，缓存可以是
+        // 一个 ArrayList 或者 BlockingQueue 之类的
+        if (++MsgCount >= BATCH_COUNT) {
+            MsgCount = 0;
+            try {
+                if (channel.waitForConfirms()) {
+                    // 将缓存中的消息清空
+                }
+                // 将缓存中的消息重新发送
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                // 将缓存中的消息重新发送
+            }
+        }
+    }
+} catch (IOException e) {
+    e.printStackTrace();
+}
+```
+
+异步 confirm 方法的编程实现最为复杂。在客户端 Channel 接口中提供的 `addConfirmListener` 方法可以添加 `ConfirmListener` 这个回调接口，
+这个 `ConfirmListener` 接口包含两个方法：`handleAck` 和 `handleNack`，分别用来处理 RabbitMQ 回传的 Basic.Ack 和 Basic.Nack。
+在这两个方法中都包含有一个参数 deliveryTag（在 publisher confirm 模式下用来标记消息的唯一有序序号）。
+我们需要为每一个信道维护一个 "unconfirm" 的消息序号集合，每发送一条消息，集合中的元素加 1。
+每当调用 `ConfirmListener` 中的 `handleAck` 方法时，"unconfirm" 集合中删除掉相应的一条（multiple 设置为 false）或者多条（multiple 设置为 true）记录。
+
+```
+channel.confirmSelect();
+channel.addConfirmListener(new ConfirmListener() {
+    public void handleAck(long deliveryTag, boolean multiple) throws IOException {
+        System.out.println("Nack, SeqNo: " + deliveryTag + ", multiple:" + multiple);
+        if (multiple) {
+            confirmSet.headSet(deliveryTag - 1).clear();
+        } else {
+            confirmSet.remove(deliveryTag);
+        }
+    }
+
+    public void handleNack(long deliveryTag, boolean multiple) throws IOException {
+        if (multiple) {
+            confirmSet.headSet(deliveryTag - 1).clear();
+        } else {
+            confirmSet.remove(deliveryTag);
+        }
+        // 注意这里需要添加处理消息重发的场景
+    }
+});
+
+// 下面是演示一直发送消息的场景
+while (true) {
+    long nextSeqNo = channel.getNextPublishSeqNo();
+    channel.basicPublish(ConfirmConfig.exchangeName, ConfirmConfig.routingKey,
+        MessageProperties.PERSISTENT_TEXT_PLAIN,
+        ConfirmConfig.msg_10B.getBytes());
+    confirmSet.add(nextSeqNo);
+}
+```
+
+4 种方式的 QPS 对比:
+
+![22](/images/rabbitmq/22.png)
+
+可以看到批量 confirm 和异步 confirm 这两种方式所呈现的性能要比其余两种好得多。
+事务机制和普通 confirm 的方式吞吐量很低，但是编程方式简单，不需要在客户端维护状态（这里指的是维护 deliveryTag 及缓存未确认的消息）。
+批量 confirm 方式的问题在于遇到 RabbitMQ 服务端返回 Basic.Nack 需要重发批量消息而导致的性能降低。
+异步 confirm 方式编程模型最为复杂，而且和批量 confirm 方式一样需要在客户端维护状态。
+
+
+
+## 消费端要点介绍
+
+消费者客户端可以通过推模式或者拉模式的方式来获取并消费消息，当消费者处理完业务逻辑需要手动确认消息已被接收，这样 RabbitMQ 才能把当前消息从
+队列中标记清除。当然如果消费者由于某些原因无法处理当前接收到的消息，可以通过 channel.basicNack 或者 channel.basicReject 来拒绝掉。
+
+这里对于 RabbitMQ 消费端来说，还有几点需要注意：
+
+* 消息分发
+
+* 消息顺序性
+
+* 弃用 QueueingConsumer
+
+
+### 消息分发
+
+当 RabbitMQ 队列拥有多个消费者时，队列收到的消息将以轮询（round-robin）的分发方式发送给消费者。每条消息只会发送给订阅列表里的一个消费者。
+这种方式非常适合扩展，而且它是专门为并发程序设计的。如果现在负载加重，那么只需要创建更多的消费者来消费处理消息即可。
+
+很多适合轮询的分发机制也不是那么优雅。默认情况下，如果有 n 个消费者，那么 RabbitMQ 会将第 m 条消息分发给 m%n（取余的方式）个消费者，
+RabbitMQ 不管消费者是否消费并已经确认（Basic.Ack）了消息。试想一下，如果某些消费者任务繁重，来不及消费那么多的消息，
+而某些其他消费者由于某些原因（比如业务逻辑简单、机器性能卓越等）很快地处理完了所分配到的消息，进而进程空闲，这样就会造成整体应用吞吐量的下降。
+
+对于这种情况我们可以使用 `channel.basicQos(int prefetchCount)` 这个方法，`channel.basicQos` 方法允许限制行道上的消费者所能保持的最大未确认消息的数量。
+
+举例说明，在订阅消费队列之前，消费端程序调用了 `channel.basicQos(5)`，之后定于了某个队列进行消费。
+RabbitMQ 会保存一个消费者的列表，每发送一条消息都会为对应的消费者计数，如果达到所设定的上限，那么 RabbitMQ 就不会向这个消费者再发送任何消息。
+直到消费者确认了某条消息之后，RabbitMQ 将相应的计数减 1，之后消费者可以继续接收消息，直到再次达到计数上限。
+
+> `Basic.Qos` 的使用对于拉模式的消费方式无效
+
+`channel.basicQos` 有三种类型的重载方法：
+
+(1) `void basicQos(int prefetchCount) throws IOException;`
+
+(2) `void basicQos(int prefetchCount, boolean global) throws IOException;`
+
+(3) `void basicQos(int prefetchSize, int prefetchCount, boolean global) throws IOException;`
+
+前面介绍的都只用到了 `prefetchCount` 这个参数，当 `prefetchCount` 设置为 0 则表示没有上限。
+还有 `prefetchSize` 这个参数表示消费者所能接收未确认消息的总体大小的上限，单位为 B，设置为 0 则表示没有上限。
+
+对于同一个信道来说，它可以同时消费多个队列，当设置了 `prefetchCount` 大于 0 时，这个信道需要和各个队列协调以确保发送的消息都没有超过所设定的
+`prefetchCount` 的值，这样会使 RabbitMQ 的性能降低，尤其是这些队列分散在集群中的多个 Broker 节点之中。
+RabbitMQ 为了提升相关的性能，在 AMQP0-9-1 协议之上重新定义了 global 这个参数。
+
+* global=false：信道上新的消费者需要遵从 prefetchCount 的限定值
+
+* global=true：信道上所有的消费者都需要遵从 prefetchCount 的限定值
+
+```
+Channel channel = ...;
+Consumer consumer1 = ...;
+Consumer consumer2 = ...;
+channel.basicQos(10); // 每个消费者能接收到的未确认消息的上限为 10
+channel.basicConsume("queue1", false, consumer1);
+channel.basicConsume("queue2", false, consumer2);
+```
+
+如果在订阅消息之前，既设置了 global 为 true 的限制，又设置了 global 为 false 的限制，RabbitMQ 会确保两者都会生效。
+举例来说，当前有两个队列 queue1 和 queue2；queue1 有 10 条消息，分别为 1 到 10；queue2 也有 10 条消息，分别为 11 到 20。
+有两个消费者分别消费这两个队列：
+
+```
+Channel channel = ...;
+Consumer consumer1 = ...;
+Consumer consumer2 = ...;
+channel.basicQos(3, false); // Per consumer limit
+channel.basicQos(5, true); // Per channel limit
+channel.basicConsume("queue1", false, consumer1);
+channel.basicConsume("queue2", false, consumer2);
+```
+
+那么这里每个消费者最多只能收到 3 个未确认的消息，两个消费者能收到的未确认的消息个数之和的上限为 5。
+在未确认消息的情况下，如果 consumer1 接收到了消息 1、2 和 3，那么 consumer2 至多只能收到 11 和 12。
+如果像这样同时使用两种 global 的模式，则会增加 RabbitMQ 的负载，因为 RabbitMQ 需要更多的资源来协调完成这些限制。
+如无特殊需要，最好只使用 global 为 false 的设置，这也是默认的设置。
+
+
+### 消息顺序性
+
+消息的顺序性是指消费者消费到的消息和发送者发布的消息的顺序是一致的。
+举个例子，不考虑消息重复的情况，如果生产者发布的消息分别为 msg1、msg2、msg3，那么消费者必然也是按照 msg1、msg2、msg3 的顺序进行消费的。
+
+目前很多资料显示 RabbitMQ 的消息能够保障顺序性，这是不准确的，或者说这个观点有很大的局限性。
+在不使用任何 RabbitMQ 的高级特性，也没有消息丢失、网络故障之类异常的情况发生，并且只有一个消费者的情况下，最好也只有一个生产者的情况下
+可以保证消息的顺序性。如果有多个生产者同时发送消息，无法确定消息到达 Broker 的前后顺序，也就无法验证消息的顺序性。
+
+那么有哪些情况下 RabbitMQ 的消息顺序性会被打破呢？下面介绍几种常见的情形。
+
+如果生产者使用了事务机制，在发送消息之后遇到异常进行了事务回滚，那么需要重新补偿发送这条消息，如果补偿发送是在另一个线程实现的，那么消息
+在生产者这个源头就出现了错序。同样，如果启用 publisher confirm 时，在发生超时、中断，又或者是收到 RabbitMQ 的 Basic.Nack 命令时，
+那么同样需要补偿发送，结果与事务机制一样会错序。或者这种说法有些牵强，我们可以固执地认为消息的顺序性是从存入队列之后开始的，
+而不是在发送的时候开始的。
+
+考虑另一种情形，如果生产者发送的消息设置了不同的超时时间，并且也设置了死信队列，
+整体上来说相当于一个延迟队列，那么消费者在消费这个延迟队列的时候，消息的顺序必然不会和生产者发送消息的顺序一致。
+
+再考虑一种情形，如果消息设置了优先级，那么消费者消费到的消息也必然不是顺序性的。
+
+如果一个队列按照前后顺序分有 msg1、msg2、msg3、msg4 这 4 个消息，同时有 ConsumerA 和 ConsumerB 这两个消费者同时订阅了这个队列。
+队列中的消息轮询分发到各个消费者之中，ConsumerA 中的消息为 msg1 和 msg3，ConsumerB 中的消息为 msg2、msg4。
+ConsumerA 收到消息 msg1 之后并不想处理而调用了 Basic.Nack/.Reject 将消息拒绝，与此同时将 requeue 设置为 true，这样这条消息就可以重新存入队列中。
+消息 msg1 之后被发送到了 ConsumerB 中，此时 ConsumerB 已经消费了 msg2、msg4，之后再消费 msg1，这样消息顺序性也就错乱了。
+或者消息 msg1 又重新发往 ConsumerA 中，此时 ConsumerA 已经消费了 msg3，那么再消费 msg1，消息顺序性也无法得到保障。
+同样可以用在 Basic.Recover 这个 AMQP 命令中。
+
+如果要保证消息的顺序性，需要业务方使用 RabbitMQ 之后做进一步的处理，比如在消息体内添加全局有序标识（类似 SequenceID）来实现。
+
+
+### 弃用 QueueingConsumer
+
+QueueingConsumer 在 RabbitMQ 4.x 版本开始被标记为 @Deprecated
+
+```
+QueueingConsumer consumer = new QueueingConsuemr(channel);
+// channel.basicQos(64); // 使用 QueueingConsumer 的时候一定要添加!
+channel.basicConsume(QUEUE_NAME, "consumer_zzh", consumer);
+
+while(true) {
+    QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+    String message = new String(delivery.getBody());
+    System.out.println(" [X] Received '" + message + "'");
+    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+}
+```
+
+QueueingConsumer 本身有几大缺陷，首当其冲的就是内存溢出的问题，由于某些原因，队列之中堆积了比较多的消息，就可能导致消费者客户端内存溢出假死，于是发生恶性循环，队列消息不断堆积而得不到消化。
+
+这个内存溢出的问题可以使用 Basic.Qos 来得到有效的解决，Basic.Qos 可以限制某个消费者所保持未确认消息的数量，
+也就是间接地限制了 QueueingConsumer 中的 LinkedBlockingQueue 的大小。注意一定要在 Basic.Consume 之前调用 Basic.Qos 才能生效。
+
+QueueingConsumer 还包含以下一些缺陷：
+
+* QueueingConsumer 会拖累同一个 Connection 下的所有信道，使其性能降低
+
+* 同步递归调用 QueueingConsume 会产生死锁
+
+* RabbitMQ 的自动连接恢复机制（automatic connection recovery）不支持 Queueing Consumer 的这种形式
+
+* QueueingConsumer 不是事件驱动的
+
+为了避免不必要的麻烦，建议在消费的时候尽量使用继承 DefaultConsumer 的方式。
+
+
+
+## 消息传输保障
+
+消息可靠传输一般是业务系统接入消息中间件时首要考虑的问题，一般消息中间件的消息传输保障分为三个层级。
+
+* At most once：最多一次。消息可能会丢失，但绝不会重复传输
+
+* At least once：最少一次。消息绝不会丢失，但可能会重复传输
+
+* Exactly once：恰好一次。每条消息肯定会被传输一次且仅传输一次
+
+RabbitMQ 支持其中的 "最多一次" 和 "最少一次"。其中 "最少一次" 投递实现需要考虑以下这几个方面的内容：
+
+(1) 消息生产者需要开启事务机制或者 publisher confirm 机制，以确保消息可以可靠地传输到 RabbitMQ 中
+
+(2) 消息生产者需要配合使用 mandatory 参数或者备份交换器来确保消息能够从交换器路由到队列中，进而能够保存下来而不会被丢弃
+
+(3) 消息和队列都需要进行持久化处理，以确保 RabbitMQ 服务器在遇到异常情况时不会造成消息丢失
+
+(4) 消费者在消费消息的同时需要将 autoAck 设置为 false，然后通过手动确认的方式去确认已经正确消费的消息，以避免在消费端引起不必要的消息丢失
+
+"最多一次" 的方式就无须考虑以上那些方面，生产者随意发送，消费者随意消费，不过这样很难确保消息不会丢失
+
+"恰好一次" 是 RabbitMQ 目前无法保障的。考虑这样一种情况，消费者在消费完一条消息之后向 RabbitMQ 发送确认 Basic.Ack 命令，
+此时由于网络断开或者其他原因造成 RabbitMQ 并没有收到这个确认命令，那么 RabbitMQ 不会将此条消息标记删除。
+在重新建立连接之后，消费者还是会消费到这一条消息，这就造成了重复消费。再考虑一种情况，生产者在使用 publisher confirm 机制的时候，
+发送完一条消息等待 RabbitMQ 返回确认通知，此时网络断开，生产者捕获到异常情况，为了确保消息可靠性选择重新发送，
+这样 RabbitMQ 中就有两条同样的消息，在消费的时候，消费者就会重复消费。
+
+那么 RabbitMQ 有没有去重的机制来保证 "恰好一次" 呢？答案是并没有，不仅是 RabbitMQ，目前大多数主流的消息中间件都没有消息去重机制，
+也不保障 "恰好一次"。去重处理一般是在业务客户端实现，比如引入 GUID(Globally Unique Identifier) 的概念。针对 GUID，如果从客户端的角度去重，
+那么需要引入集中式缓存，必然会增加依赖复杂度，另外缓存的大小也难以界定。建议在实际生产环境中，业务方根据自身的业务特性进行去重，
+比如业务消息本身具备幂等性，或者借助 Redis 等其他产品进行去重处理。
+
+
+
+## 小结
+
+提升数据可靠性有以下一些途径：设置 mandatory 参数或者备份交换器（immediate 参数已被淘汰）；
+设置 publisher confirm 机制或者事务机制；
+设置交换器、队列和消息都为持久化；
+设置消费端对应的 autoAck 参数为 false 并在消费完消息之后再进行消息确认。
