@@ -8,6 +8,8 @@ tags: [swoole]
 
 > 实际使用过程中，要么异步了，但是没有等待直接往下执行。要么等待了，但是也直接阻塞了。
 
+> 因为 Reactor 线程不在 worker 进程
+
 
 ~~解决方法：使用 `swoole_event_dispatch()` 或者 `swoole_event_wait()`~~
 
