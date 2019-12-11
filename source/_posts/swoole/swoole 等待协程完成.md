@@ -89,11 +89,13 @@ swoole 底层底层维持了控制权，就无法让出给框架方。
 由于这个原因，在 swoole server 的 worker 进程里面使用 `swoole_event_wait` 有可能会导致进程直接阻塞。
 
 
-## 等待多个协程
+## ~~等待多个协程~~
 
-如果我们有多个协程需要等待，则我们需要在协程后面多次调用 `swoole_event_dispatch` 或者 `swoole_event_wait`。
+这里有误，暂时不知道原因
 
-一个协程对应一个 `swoole_event_dispatch` 或者 `swoole_event_wait`。
+~~如果我们有多个协程需要等待，则我们需要在协程后面多次调用 `swoole_event_dispatch` 或者 `swoole_event_wait`。~~
+
+~~一个协程对应一个 `swoole_event_dispatch` 或者 `swoole_event_wait`。~~
 
 如：
 
