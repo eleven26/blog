@@ -1,7 +1,7 @@
 ---
 title: centos 6.10 升级 swoole 到 4.3.3.md
 date: 2019-08-08 09:00:00
-tags: [Swoole, CentOS]
+tags: [swoole, CentOS]
 ---
 
 upgrade-swoole.sh
