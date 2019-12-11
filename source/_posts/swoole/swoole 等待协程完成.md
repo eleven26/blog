@@ -131,3 +131,8 @@ echo $a . PHP_EOL;
 ```
 
 > 注意事项: 工作在 worker 进程下时候，不能一个协程后面写多个 `swoole_event_dispatch`，否则会导致进程阻塞。
+
+
+## 没有任何事件发生会一直阻塞
+
+如果我们在 swoole worker 的 onRequest 里面调用了 swoole_event_dispatch，但是没有任何事件发生，进程会一直阻塞。
