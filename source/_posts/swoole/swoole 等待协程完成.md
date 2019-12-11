@@ -4,7 +4,12 @@ date: 2019-12-11 09:05:00
 tags: [swoole]
 ---
 
-解决方法：使用 `swoole_event_dispatch()` 或者 `swoole_event_wait()`
+> 几番折腾，实现不了想要的效果（在 swoole worker 里面使用多个协程发送 MySQL 查询，不同协程使用不同的 MySQL 连接，应用里面维护一个连接池，然后等待这些协程结束），下面的内容可能有部分不正确。
+
+> 实际使用过程中，要么异步了，但是没有等待直接往下执行。要么等待了，但是也直接阻塞了。
+
+
+~~解决方法：使用 `swoole_event_dispatch()` 或者 `swoole_event_wait()`~~
 
 
 ## swoole_event_wait
