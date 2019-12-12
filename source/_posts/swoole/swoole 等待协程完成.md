@@ -11,6 +11,12 @@ tags: [swoole]
 > 因为 Reactor 线程不在 worker 进程
 
 
+## 2019-12-12 更新
+
+其实解决办法也不是没有，进程启动的时候同时启动一个 tcp server，然后在 worker 进程里面手动 `swoole_event_add` 来模拟事件触发，从而使得 `swoole_event_dispatch` 实现等待。
+
+
+
 ~~解决方法：使用 `swoole_event_dispatch()` 或者 `swoole_event_wait()`~~
 
 
