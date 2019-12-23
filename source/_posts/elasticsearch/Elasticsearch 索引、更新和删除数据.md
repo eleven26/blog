@@ -1,5 +1,5 @@
 ---
-title: 索引、更新和删除数据
+title: Elasticsearch 索引、更新和删除数据
 date: 2019-12-09 21:47:00
 tags: [ElasticSearch]
 ---
