@@ -11,6 +11,11 @@ tags: [swoole]
 > 因为 Reactor 线程不在 worker 进程
 
 
+## 2019-12-24 更新
+
+实现方法还是有的，使用 swoole 的协程 Http server、协程 MySQL 客户端
+
+
 ## swoole_event_wait
 
 使用场景：单个进程。同时发出多个 http 请求，然后等待所有 http 请求返回再往下执行。
