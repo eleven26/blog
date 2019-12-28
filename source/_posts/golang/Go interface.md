@@ -250,4 +250,126 @@ type Streamer interface {
 
 ## 使用 flag.Value 来解析参数
 
+在本节中，我们将看到如何使用另外一个标准接口 `flag.Value` 来帮助我们定义命令行标志。考虑如下一个程序，它实现了睡眠指定时间的功能。
+
+```
+var period = flag.Duration("period", 1 * time.Second, "sleep period")
+
+func main() {
+    flag.Parse()
+    fmt.Printf("Sleeping for %v...", *period)
+    time.Sleep(*period)
+    fmt.Println()
+}
+```
+
+在程序进入睡眠前输出了睡眠时长。fmt 包调用了 `time.Duration` 的 `String` 方法，可以按照一个用户友好的方式来输出，
+而不是输出一个以纳秒为单位的数字。
+
+默认的睡眠时间是 1s，但是可以用 `-period` 命令行标志来控制。`flag.Duration` 函数创建了一个 `time.Duration` 类型的标志变量，
+并且允许用户用一种友好的方式来指定时长，比如可以用 String 方法对应的记录方法。这种对称的设计提供了一个良好的用户接口。
+
+```
+$ ./sleep -period 50ms
+```
+
+因为时间长度类的命令行标志广泛应用，所以这个功能内置到了 flag 包。支持自定义类型其实也不难，只须定义一个满足 flag.Value 接口的类型，其定义如下所示：
+
+```
+package flag
+
+// Value 接口代表了存储在标志内的值
+type Value interface {
+    String() string
+    Set(string) error
+}
+```
+
+String 方法用于格式化标志对应的值，可用于输出命令行帮助消息。由于有了该方法，因此每个 flag.Value 其实也是 fmt.Stringer。
+Set 方法解析了传入的字符串参数并更新标志值。可以认为 Set 方法是 String 方法的逆操作，两个方法使用同样的记法规格是一个很好的实践。
+
+
+## 接口值
+
+从概念上来讲，一个接口类型的值（简称接口值）其实有两个部分：一个具体类型和该类型的一个值。二者称为接口的动态类型和动态值。
+
+对于像 Go 这样的静态类型语言，类型仅仅是一个编译时的概念，所以类型不是一个值。在我们的概念模型中，用类型描述符来提供每个类型的具体信息，
+比如它的名字和方法。对于一个接口值，类型部分就用对应的类型描述符来表述。
+
+
+如下四个语句中，变量 w 有三个不同的值（最初和最后是同一个值）：
+
+```
+var w io.Writer
+w = os.Stdout
+w = new(bytes.Buffer)
+w = nil
+```
+
+接下来我们详细地查看一下在每个语句之后 w 的值和相关的动态行为。第一个语句声明 w：
+
+```
+var w io.Writer
+```
+
+在 Go 语言中，变量总是初始化为一个特定的值，接口也不例外。接口的零值就是把它的动态类型和值都设置为 nil。
+
+一个接口值是否是 nil 取决于它的动态类型，所以现在这是一个 nil 接口值。可以用 w == nil 或者 w != nil 来检测一个接口值是否是 nil。
+
+调用一个 nil 接口的任何方法都会导致崩溃：
+
+```
+w.Write([]byte("hello")) // 崩溃：对空指针取引用值
+```
+
+第二个语句把一个 *os.File 类型的值赋给了 w：
+
+```
+w = os.Stdout
+```
+
+这次赋值把一个具体类型隐式转换为一个接口类型，它与对应的显式转换 `io.Writer(os.Stdout)` 等价。不管这种类型的转换是隐式的还是显式的，
+它都可以转换操作数的类型和值。接口值的动态类型会设置为指针类型 *os.File 的类型描述符，它的动态值会设置为 `os.Stdout` 的副本，即一个
+指向代表进程的标准输出的 os.File 类型的指针。
+
+![7-1](/images/go/7-1.png)
+
+调用该接口值的 Write 方法，会实际调用 (*os.File).Write 方法，即输出 "hello"
+
+```
+w.Write([]byte("hello")) // "hello"
+```
+
+一般来讲，在编译时我们无法知道一个接口值的动态类型会是什么，所以通过接口来做调用必然需要使用动态分发。编译器必须生成一段代码来从类型描述符
+拿到名为 Writer 的方法地址，再间接调用该方法地址。调用的接收者就是接口值的动态值，即 `os.Stdout`，所以实际效果与直接调用等价：
+
+```
+os.Stdout.Writer([]byte("hello")) // "hello"
+```
+
+第三个语句把一个 *bytes.Buffer 类型的值赋给了接口值：
+
+```
+w = new(bytes.Buffer0
+```
+
+动态类型现在是 `*bytes.Buffer`，动态值现在则是一个指向新分配缓冲区的指针：
+
+![7-3](/images/go/7-3.png)
+
+调用 Write 方法的机制也跟第二个语句一致：
+
+```
+w.Write([]byte("hello")) // 把 "hello" 写入 bytes.Buffer
+```
+
+这次，类型描述符是 *bytes.Buffer，所以调用的是 (*bytes.Buffer).Write 方法，方法的接收者是缓冲区的地址。调用该方法会追加 "hello" 到缓冲区。
+
+最后，第四个语句把 nil 赋给了接口值：
+
+```
+w = nil
+```
+
+这个语句把动态类型和动态值都设置为 nil，把 w 恢复到了它刚声明时的状态。
 
