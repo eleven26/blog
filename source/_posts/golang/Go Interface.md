@@ -373,3 +373,203 @@ w = nil
 
 这个语句把动态类型和动态值都设置为 nil，把 w 恢复到了它刚声明时的状态。
 
+一个接口值可以指向多个任意大的动态值。比如，`time.Time` 类型可以表明一个时刻，它是一个包含几个非导出字段的结构。如果从它创建一个接口值：
+
+```
+var x interface{} = time.Now()
+```
+
+结果是，x 的类型值是一个 `time.Time` 结构的值。
+
+接口值可以用 == 和 != 操作符来做比较。如果两个接口值都是 nil 或者二者的动态类型完全一致且二者动态值相等（使用动态类型的 == 操作符来做比较），
+那么两个接口值相等。因为接口值是可以比较的，所以它们可以作为 map 的键，也可以作为 switch 语句的操作数。
+
+需要注意的是，在比较两个接口值的时，如果两个接口值的动态类型一致，但对应的动态值是不可比较的（比如 slice），
+那么这个比较会以崩溃的方式失败：
+
+```
+var x interface{} = []int{1, 2, 3}
+fmt.Println(x == x) // 宕机：试图比较不可比较类型 []int
+```
+
+其它类型要么是可以安全比较的（比如基础类型和指针），要么是完全不可比较的，但当比较接口值或者其中包含接口值的聚合类型时，
+我们必须消息崩溃的可能性。当把接口作为 map 的键或者 switch 语句的操作数时，也存在类似的风险。
+仅在能确认接口值包含的动态值可以比较时，才比较接口值。
+
+当处理错误或者调试时，能拿到接口值的动态类型是很有帮助的。可以使用 fmt 包的 %T 来实现这个需求。
+
+```
+var w io.Writer
+fmt.Println("%T\n", w) // "<nil>"
+
+w = os.Stdout
+fmt.Println("%T\n", w) // "*os.File"
+
+w = new(bytes.Buffer)
+fmt.Println("%T\n", w) // "*bytes.Buffer"
+```
+
+在内部实现中，fmt 用反射来拿到接口动态类型的名字。
+
+
+### 注意：含有空指针的非空接口
+
+空的接口值（其中不包含任何信息）与仅仅动态值为 nil 的接口值是不一样的。
+
+考虑如下程序，当 debug 设置为 true 时，主函数收集函数 f 的输出到一个缓冲区中：
+
+```
+const debug = true
+
+func main() {
+    var buf *bytes.Buffer
+    if debug {
+        buf = new(bytes.Buffer) // 启用输出收集
+    }
+    f(buf) // 注意：微妙的错误
+    if debug {
+        // 使用 buf
+    }
+}
+
+// 如果 out 不是 nil，那么会向其写入输出的数据
+func f(out io.Writer) {
+    // ... 其它代码 ...
+    if out != nil {
+        out.Write([]byte("done!\n"))
+    }
+}
+```
+
+当设置 debug 为 false 时，我们会觉得仅仅是不再收集输出，但实际上会导致程序在调用 `out.Write` 时崩溃：
+
+```
+if out != nil {
+    out.Write([]byte("done!\n")) // 宕机：对空指针取引用值
+}
+```
+
+当 main 函数调用 f 时，它把一个类型为 *bytes.Buffer 的空指针赋给了 out 参数，所以 out 是一个包含空指针的非空接口，
+所以防御性检查 out != nil 仍然是 true。
+
+如前所述，动态分发机制决定了我们肯定会调用 (*bytes.Buffer).Write，只不过这次接收者值为空。
+对于某些类型，比如 *os.File，空接收值是合法的，但对于 *bytes.Buffer 则不行。方法尽管被调用了，但在尝试访问缓冲区时崩溃了。
+
+问题在于，尽管一个空的 `*bytes.Buffer` 指针拥有的方法满足了该接口，但它并不满足该接口所需的一些行为。
+特别是，这个调用违背了 `(*bytes.Buffer).Write` 的一个隐式的前置条件，即接收者不能为空，所以把空指针赋给这个接口就是一个错误。
+解决方案是把 main 函数中的 buf 类型修改为 `io.Writer`，从而避免在最开始就把一个功能不完整的值赋给一个接口。
+
+```
+var buf io.Writer
+if debug {
+    buf = new(bytes.Buffer) // 启用输出收集
+}
+f(buf) // OK
+```
+
+
+## error 接口
+
+error 只是一个接口类型，包含一个返回错误消息的方法：
+
+```
+type error interface {
+    Error() string
+}
+```
+
+构造 error 最简单的方法是调用 `errors.New`，它会返回一个包含特定的错误消息的新 error 实例。完整的 error 包只有如下 4 行代码：
+
+```
+package errors
+
+func New(text string) error {
+    return &errorString{text}
+}
+
+func (e *errorString) Error() string {
+    return e.text
+}
+```
+
+底层的 errorString 类型是一个结构，而没有直接用字符串，主要是为了避免将来无意间的布局变更。满足 error 接口的是 *errorString 指针，
+而不是原始的 errorString，主要是为了让每次 New 分配的 error 实例都互不相等。我们不希望出现像 io.EOF 这样重要的错误，与仅仅
+包含同样错误消息的一个错误相等。
+
+```
+fmt.Println(errors.New("EOF") == errors.New("EOF")) // false
+```
+
+直接调用 `errors.New` 比较罕见，因为有一个更易用的封装函数 `fmt.Errorf`，它还额外提供了字符串格式化功能。
+
+```
+package fmt
+
+import "errors"
+
+func Errorf(format string, args ...interface{}) error {
+    return errors.New(Sprintf(format, args...))
+}
+```
+
+尽管 `*errorString` 可能是最简单的 error 类型，但这样简单的 error 类型远不止一个。
+
+
+## 类型断言
+
+类型断言是一个作用在接口值上的操作，写出来类似于 `x.(T)`，其中 x 是一个接口类型的表达式，而 T 是一个类型（称为断言类型）。
+类型断言会检查作为操作数的动态类型是否满足指定的断言类型。
+
+这儿有两个可能。首先，如果断言类型 T 是一个具体类型，那么类型断言会检查 x 的动态类型是否就是 T。如果检查成功，类型断言的结果就是 x 的动态值，
+类型当然是 T。换句话说，类型断言就是用来从它的操作数中把具体类型的值提取出来的操作。如果检查失败，那么操作崩溃。比如：
+
+```
+var w io.Writer
+w = os.Stdout
+f := w.(*os.File) // 成功：f == os.Stdout
+c := w.(*bytes.Buffer) // 崩溃：接口持有的是 *os.File，不是 *bytes.Buffer
+```
+
+其次，如果断言类型 T 是一个接口类型，那么类型断言检查 x 的动态类型是否满足 T。如果检查成功，动态值并没有提取出来，结果仍然是一个接口值，
+接口值的类型和值部分也没有变更，只是结果的类型为接口类型 T。换句话说，类型断言是一个接口值表达式，从一个接口类型变为拥有另外一套方法的接口类型
+（通常方法数量是增多），但保留了接口值中的动态类型和动态值部分。
+
+如下类型断言代码中，w 和 rw 都持有 os.Stdout，于是所有对应的动态类型都是 *os.File，但 w 作为 `io.Writer` 仅暴露了文件的 Write 方法，
+而 rw 还暴露了它的 Read 方法。
+
+```
+var w io.Writer
+w = os.Stdout
+rw := w.(io.ReadWriter) // 成功：*os.File 有 Read 和 Write 方法
+
+w = new(ByteCounter)
+rw = w.(io.ReadWriter) // 崩溃：*ByteCounter 没有 Read 方法
+```
+
+无论哪种类型作为断言类型，如果操作数是一个空接口值，类型断言都失败。很少需要从一个接口类型向一个要求更宽松的类型做类型断言，
+该宽松类型的接口方法比原类型的少，而且是子集。因为除了在操作 nil 之外的情况下，在其它情况下这种操作与赋值一致。
+
+```
+w = rw // io.ReadWriter 可以赋给 io.Writer
+w = rw.(io.Writer) // 仅当 rw == nil 时失败
+```
+
+我们经常无法确定一个接口值的动态类型，这时就需要检测它是否是某一个特定类型。如果类型断言出现在需要两个结果的赋值表达式中，
+那么断言不会在失败时崩溃，而是会多返回一个布尔型的返回值来指示断言是否成功。
+
+```
+var w io.Writer = os.Stdout
+f, ok := w.(*os.File) // 成功: ok，f == os.Stdout
+b, ok := w.(*bytes.Buffer) // 失败: !ok, b == nil
+```
+
+按照惯例，一般把第二个返回值赋给一个名为 ok 的变量。如果操作失败，ok 为 false，而第一个返回值为断言类型的零值，
+在这个例子中就是 *bytes.Buffer 的空指针。
+
+ok 返回值通常马上就用来决定下一步做什么。下面 if 表达式的扩展形式就可以让我们写出相当紧凑的代码:
+
+```
+if f, ok := w.(*os.File); ok {
+    // ...use w...
+}
+```
