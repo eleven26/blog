@@ -11,7 +11,7 @@ sudo rm -rf /tmp/mongo-php-driver /usr/src/mongo-php-driver
 git clone -c advice.detachedHead=false -b '1.6.1' --single-branch https://github.com/mongodb/mongo-php-driver.git /tmp/mongo-php-driver
 sudo mv /tmp/mongo-php-driver /usr/src/mongo-php-driver
 cd /usr/src/mongo-php-driver
-git submodule -q update --init
+git submodule update --init
 ```
 
 编译安装
