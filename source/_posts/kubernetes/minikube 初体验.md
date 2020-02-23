@@ -83,4 +83,6 @@ Request Body:
 
 3. [minikube是什么](https://www.cnblogs.com/liyuanhong/p/10143157.html)
 
+4. [! VM is unable to access k8s.gcr.io, you may need to configure a proxy or set --image-repository](https://github.com/kubernetes/minikube/issues/5860)
+
 
