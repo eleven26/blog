@@ -1,6 +1,6 @@
 ---
 title: mac 下新版 GitKraken 不能打开私有仓库解决方案
-date: 2020-01-15 08:43:00
+date: 2020-02-24 15:06:00
 tags: [Git, GitKraken, electron]
 ---
 
