@@ -1,5 +1,5 @@
 ---
-title: laravel jenssegers mongodb 遍历大数据量 collection 优化.md
+title: laravel jenssegers mongodb 遍历大数据量 collection 优化
 date: 2019-02-24 15:06:00
 tags: [MongoDB, Laravel, PHP]
 ---
