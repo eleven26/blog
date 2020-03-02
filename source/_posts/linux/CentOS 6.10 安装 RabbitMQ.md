@@ -19,12 +19,12 @@ sudo yum install erlang erlang-nox
 CentOS/RHEL 6
 
 ```
-wget https://www.rabbitmq.com/releases/rabbitmq-server/v3.6.9/rabbitmq-server-3.6.9-1.el6.noarch.rpm
+https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.8.2/rabbitmq-server-3.8.2-1.el6.noarch.rpm
 ```
 
 ```
 sudo rpm --import https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
-sudo yum install rabbitmq-server-3.6.9-1.noarch.rpm
+sudo yum install rabbitmq-server-3.8.2-1.el6.noarch.rpm
 ```
 
 ## 疑难杂症
