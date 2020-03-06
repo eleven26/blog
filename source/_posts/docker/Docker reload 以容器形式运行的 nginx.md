@@ -1,5 +1,5 @@
 ---
-title: Docker reload 以容器形式运行的 nginx.md
+title: Docker reload 以容器形式运行的 nginx
 date: 2019-10-24 09:06:30
 tags: Docker
 ---
