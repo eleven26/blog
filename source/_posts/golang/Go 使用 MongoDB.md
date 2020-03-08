@@ -272,7 +272,7 @@ fmt.Println("Found multiple documents (array of pointers): %+v\n", results)
 
 ### 删除文档
 
-最后，你可以使用 `collection.DeleteOne()` 或者 `collection.DeleteMany()` 来删除文档。这里传递了 ```bson.D{{}}``` 作为 filter 参数，将会匹配集合中的所有文档。你也可以使用 `collection.Drop` 来删除整个集合。
+最后，你可以使用 `collection.DeleteOne()` 或者 `collection.DeleteMany()` 来删除文档。这里传递了 `bson.D{ {} }` 作为 filter 参数，将会匹配集合中的所有文档。你也可以使用 `collection.Drop` 来删除整个集合。
 
 ```
 deleteResult, err := collection.DeleteMany(context.TODO(), bson.D{{}})
