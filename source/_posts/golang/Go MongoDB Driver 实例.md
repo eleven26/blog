@@ -769,3 +769,318 @@ func main() {
 ```
 
 
+## 实例七 查询嵌套文档
+
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_query_embedded")
+
+	err := coll.Drop(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 29
+		docs := []interface{}{
+			bson.D{
+				{"item", "journal"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 5},
+					},
+					bson.D{
+						{"warehourse", "C"},
+						{"qty", 15},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "C"},
+						{"qty", 5},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 60},
+					},
+					bson.D{
+						{"warehouse", "B"},
+						{"qty", 15},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "planner"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 40},
+					},
+					bson.D{
+						{"warehouse", "B"},
+						{"qty", 5},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "B"},
+						{"qty", 15},
+					},
+					bson.D{
+						{"warehouse", "C"},
+						{"qty", 35},
+					},
+				}},
+			},
+		}
+
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 30
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock", bson.D{
+					{"warehouse", "A"},
+					{"qty", 5},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 1
+	}
+
+	{
+		// Start Example 31
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock", bson.D{
+					{"qty", 5},
+					{"warehouse", "A"},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 0
+	}
+
+	{
+		// Start Example 32
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock.0.qty", bson.D{
+					{"$lte", 20},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 3
+	}
+
+	{
+		// Start Example 33
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock.qty", bson.D{
+					{"$lte", 20},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 5
+	}
+
+	{
+		// Start Example 34
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock", bson.D{
+					{"$elemMatch", bson.D{
+						{"qty", 5},
+						{"warehouse", "A"},
+					}},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 1
+	}
+
+	{
+		// Start Example 35
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock", bson.D{
+					{"$elemMatch", bson.D{
+						{"qty", bson.D{
+							{"$gt", 10},
+							{"$lte", 20},
+						}},
+					}},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 3
+	}
+
+	{
+		// Start Example 36
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock.qty", bson.D{
+					{"$gt", 10},
+					{"$lte", 20},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length) // 4
+	}
+
+	{
+		// Start Example 37
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"instock.qty", 5},
+				{"instock.warehouse", "A"},
+			})
+		type Stock struct {
+			Warehouse string
+			Qty       int
+		}
+		type Data struct {
+			Item    string
+			Instock []Stock
+		}
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+			var d Data
+			cursor.Decode(&d)
+			// {Item:journal Instock:[{Warehouse:A Qty:5} {Warehouse: Qty:15}]}
+			// {Item:planner Instock:[{Warehouse:A Qty:40} {Warehouse:B Qty:5}]}
+			fmt.Printf("%+v\n", d)
+		}
+		fmt.Printf("length: %v\n", length) // 2
+	}
+}
+```
+
+
+## 实例八 查询为 null 或缺失的字段
+
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_query_null_missing")
+
+	err := coll.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 38
+		docs := []interface{}{
+			bson.D{
+				{"_id", 1},
+				{"item", nil},
+			},
+			bson.D{
+				{"_id", 2},
+			},
+		}
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 39
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"item", nil},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 40
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"item", bson.D{
+					{"$type", 10}, // 10 等同于 "null", https://www.runoob.com/mongodb/mongodb-operators-type.html
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 41
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"item", bson.D{
+					{"$exists", false},
+				}},
+			})
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+}
+```
+
+
+## 实例九 Projection
+
