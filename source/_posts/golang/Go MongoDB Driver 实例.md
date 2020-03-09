@@ -420,3 +420,352 @@ func main() {
 	}
 }
 ```
+
+
+## 实例五 查询嵌套的字段
+
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_query_embedded")
+
+	err := coll.Drop(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 14
+		docs := []interface{}{
+			bson.D{
+				{"item", "journal"},
+				{"qty", 25},
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"qty", 50},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"qty", 100},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "planner"},
+				{"qty", 75},
+				{"size", bson.D{
+					{"h", 22.85},
+					{"w", 30},
+					{"uom", "cm"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"qty", 45},
+				{"size", bson.D{
+					{"h", 10},
+					{"w", 15.25},
+					{"uom", "cm"},
+				}},
+			},
+		}
+
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 15
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 16
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"size", bson.D{
+					{"w", 21},
+					{"h", 14},
+					{"uom", "cm"},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 17
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{{"size.uom", "in"}},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 18
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"size.h", bson.D{
+					{"$lt", 15},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 19
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"size.h", bson.D{
+					{"$lt", 15},
+				}},
+				{"size.uom", "in"},
+				{"status", "D"},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+}
+```
+
+
+## 实例六 查询数组
+
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_query_array")
+
+	err := coll.Drop(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 20
+		docs := []interface{}{
+			bson.D{
+				{"item", "journal"},
+				{"qty", 25},
+				{"tags", bson.A{"blank", "red"}},
+				{"dim_cm", bson.A{14, 21}},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"qty", 50},
+				{"tags", bson.A{"red", "blank"}},
+				{"dim_cm", bson.A{14, 21}},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"qty", 100},
+				{"tags", bson.A{"red", "blank", "plain"}},
+				{"dim_cm", bson.A{14, 21}},
+			},
+			bson.D{
+				{"item", "planner"},
+				{"qty", 75},
+				{"tags", bson.A{"blank", "red"}},
+				{"dim_cm", bson.A{22.85, 30}},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"qty", 45},
+				{"tags", bson.A{"blue"}},
+				{"dim_cm", bson.A{10, 15.25}},
+			},
+		}
+
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 21
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{{"tags", bson.A{"red", "blank"}}},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 22
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"tags", bson.D{{"$all", bson.A{"red", "blank"}}}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 23
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"tags", "red"},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 24
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"dim_cm", bson.D{
+					{"$gt", 25},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 25
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"dim_cm", bson.D{
+					{"$gt", 15},
+					{"$lt", 20},
+				}},
+			},
+		)
+
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 26
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"dim_cm", bson.D{
+					{"$elemMatch", bson.D{
+						{"$gt", 22},
+						{"$lt", 30},
+					}},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 27
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"dim_cm.1", bson.D{
+					{"$gt", 25},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+
+	{
+		// Start Example 28
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"tags", bson.D{
+					{"$size", 3},
+				}},
+			},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %v\n", length)
+	}
+}
+```
+
+
