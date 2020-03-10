@@ -1411,4 +1411,258 @@ func main() {
 
 ## 实例十 更新
 
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_update")
+
+	err := coll.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 51
+		docs := []interface{}{
+			bson.D{
+				{"item", "canvas"},
+				{"qty", 100},
+				{"size", bson.D{
+					{"h", 28},
+					{"w", 35.5},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "journal"},
+				{"qty", 25},
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "mat"},
+				{"qty", 85},
+				{"size", bson.D{
+					{"h", 27.9},
+					{"w", 35.5},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "mousepad"},
+				{"qty", 25},
+				{"size", bson.D{
+					{"h", 19},
+					{"w", 22.85},
+					{"uom", "in"},
+				}},
+				{"status", "P"},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"qty", 50},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "P"},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"qty", 100},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "planner"},
+				{"qty", 75},
+				{"size", bson.D{
+					{"h", 22.85},
+					{"w", 30},
+					{"uom", "cm"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"qty", 45},
+				{"size", bson.D{
+					{"h", 10},
+					{"w", 15.25},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "sketchbook"},
+				{"qty", 80},
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "sketch pad"},
+				{"qty", 95},
+				{"size", bson.D{
+					{"h", 22.85},
+					{"w", 30.5},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+		}
+
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 52
+		result, _ := coll.UpdateOne(
+			context.Background(),
+			bson.D{
+				{"item", "paper"},
+			},
+			bson.D{
+				{"$set", bson.D{
+					{"size.uom", "cm"},
+					{"status", "{"},
+				}},
+				{"$currentDate", bson.D{
+					{"lastModified", true},
+				}},
+			},
+		)
+		fmt.Printf("result.MatchedCount: %+v\n", result.MatchedCount)
+		fmt.Printf("result.ModifiedCount: %+v\n", result.ModifiedCount)
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"item", "paper"},
+			},
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			uom, _ := doc.LookupErr("size", "uom")
+			fmt.Printf("uom.StringValue() = %+v\n", uom.StringValue())
+
+			status, _ := doc.LookupErr("status")
+			fmt.Printf("status.StringValue() = %+v\n", status.StringValue())
+
+			fmt.Printf("contain lastModified: %+v\n", containsKey(doc, "lastModified"))
+		}
+	}
+
+	{
+		// Start Example 53
+		result, _ := coll.UpdateMany(
+			context.Background(),
+			bson.D{
+				{"qty", bson.D{
+					{"$lt", 50},
+				}},
+			},
+			bson.D{
+				{"$set", bson.D{
+					{"size.uom", "cm"},
+					{"status", "P"},
+				}},
+				{"$currentDate", bson.D{
+					{"lastModified", true},
+				}},
+			},
+		)
+
+		fmt.Printf("result.MatchedCount: %+v\n", result.MatchedCount)
+		fmt.Printf("result.ModifiedCount: %+v\n", result.ModifiedCount)
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"qty", bson.D{
+					{"$lt", 50},
+				}},
+			},
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			uom, _ := doc.LookupErr("size", "uom")
+			fmt.Printf("uom.StringValue(): %+v\n", uom.StringValue())
+
+			status, _ := doc.LookupErr("status")
+			fmt.Printf("status.StringValue(): %+v\n", status.StringValue())
+
+			fmt.Printf("contain lastModified: %+v\n", containsKey(doc, "lastModified"))
+		}
+	}
+
+	{
+		// Start Example 54
+		result, _ := coll.ReplaceOne(
+			context.Background(),
+			bson.D{
+				{"item", "paper"},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 60},
+					},
+					bson.D{
+						{"warehouse", "B"},
+						{"qty", 40},
+					},
+				}},
+			},
+		)
+
+		fmt.Printf("MatchedCount: %+v\n", result.MatchedCount)
+		fmt.Printf("ModifiedCount: %+v\n", result.ModifiedCount)
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"item", "paper"},
+			},
+			)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contains _id: %+v\n", containsKey(doc, "_id"))
+			fmt.Printf("contains item: %+v\n", containsKey(doc, "item"))
+			fmt.Printf("contain instock: %+v\n", containsKey(doc, "instock"))
+
+			instock, _ := doc.LookupErr("instock")
+			vals, _ := instock.Array().Values()
+			fmt.Printf("length of vals is: %+v\n", vals)
+		}
+	}
+}
+```
+
+
+## 实例十一 删除
+
 
