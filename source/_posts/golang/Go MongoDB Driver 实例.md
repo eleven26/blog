@@ -1084,3 +1084,331 @@ func main() {
 
 ## 实例九 Projection
 
+
+```
+func containsKey(doc bson.Raw, key ...string) bool {
+	_, err := doc.LookupErr(key...)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func main() {
+	db := db()
+	coll := db.Collection("inventory_project")
+
+	err := coll.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 42
+		docs := []interface{}{
+			bson.D{
+				{"item", "journal"},
+				{"status", "A"},
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 5},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"status", "A"},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "EC"},
+						{"qty", 5},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"status", "D"},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "A"},
+						{"qty", 60},
+					},
+				}},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"status", "A"},
+				{"size", bson.D{
+					{"h", 10},
+					{"w", 15.25},
+					{"uom", "cm"},
+				}},
+				{"instock", bson.A{
+					bson.D{
+						{"warehouse", "B"},
+						{"qty", 15},
+					},
+					bson.D{
+						{"warehouse", "EC"},
+						{"qty", 35},
+					},
+				}},
+			},
+		}
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 43
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{{"status", "A"}},
+		)
+		length := 0
+		for cursor.Next(context.Background()) {
+			length++
+		}
+		fmt.Printf("length: %+v\n", length)
+	}
+
+	{
+		// Start Example 44
+		projection := bson.D{
+			{"item", 1},
+			{"status", 1},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			break
+		}
+	}
+
+	{
+		// Start Example 45
+		projection := bson.D{
+			{"item", 1},
+			{"status", 1},
+			{"_id", 0},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			break
+		}
+	}
+
+	{
+		// Start Example 46
+		projection := bson.D{
+			{"status", 0},
+			{"instock", 0},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			break
+		}
+	}
+
+	{
+		// Start Example 47
+		projection := bson.D{
+			{"item", 1},
+			{"status", 1},
+			{"size.uom", 1},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			fmt.Printf("contain size.uom: %v\n", containsKey(doc, "size", "uom"))
+			fmt.Printf("contain size.h: %v\n", containsKey(doc, "size", "h"))
+			fmt.Printf("contain size.w: %v\n", containsKey(doc, "size", "w"))
+
+			break
+		}
+	}
+
+	{
+		// Start Example 48
+		projection := bson.D{
+			{"size.uom", 0},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			fmt.Printf("contain size.uom: %v\n", containsKey(doc, "size", "uom"))
+			fmt.Printf("contain size.h: %v\n", containsKey(doc, "size", "h"))
+			fmt.Printf("contain size.w: %v\n", containsKey(doc, "size", "w"))
+
+			break
+		}
+	}
+
+	{
+		// Start Example 49
+		projection := bson.D{
+			{"item", 1},
+			{"status", 1},
+			{"instock.qty", 1},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			instock, _ := doc.LookupErr("instock")
+			vals, _ := instock.Array().Values()
+
+			for _, val := range vals {
+				subdoc := val.Document()
+				elems, _ := subdoc.Elements()
+				fmt.Printf("length of elems: %+v\n", len(elems))
+			}
+
+			break
+		}
+	}
+
+	{
+		// Start Example 50
+		projection := bson.D{
+			{"item", 1},
+			{"status", 1},
+			{"instock", bson.D{
+				{"$slice", -1},
+			}},
+		}
+
+		cursor, _ := coll.Find(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+			options.Find().SetProjection(projection),
+		)
+
+		for cursor.Next(context.Background()) {
+			doc := cursor.Current
+
+			fmt.Printf("contain _id: %v\n", containsKey(doc, "_id"))
+			fmt.Printf("contain item: %v\n", containsKey(doc, "item"))
+			fmt.Printf("contain status: %v\n", containsKey(doc, "status"))
+			fmt.Printf("contain size: %v\n", containsKey(doc, "size"))
+			fmt.Printf("contain instock: %v\n", containsKey(doc, "instock"))
+
+			break
+		}
+	}
+}
+```
+
+
+## 实例十 更新
+
+
