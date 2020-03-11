@@ -1665,4 +1665,174 @@ func main() {
 
 ## 实例十一 删除
 
+```
+func main() {
+	db := db()
+	coll := db.Collection("inventory_delete")
+
+	err := coll.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	{
+		// Start Example 55
+		docs := []interface{}{
+			bson.D{
+				{"item", "journal"},
+				{"qty", 25},
+				{"size", bson.D{
+					{"h", 14},
+					{"w", 21},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+			bson.D{
+				{"item", "notebook"},
+				{"qty", 50},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "P"},
+			},
+			bson.D{
+				{"item", "paper"},
+				{"qty", 100},
+				{"size", bson.D{
+					{"h", 8.5},
+					{"w", 11},
+					{"uom", "in"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "planner"},
+				{"qty", 75},
+				{"size", bson.D{
+					{"h", 22.85},
+					{"w", 30},
+					{"uom", "cm"},
+				}},
+				{"status", "D"},
+			},
+			bson.D{
+				{"item", "postcard"},
+				{"qty", 45},
+				{"size", bson.D{
+					{"h", 10},
+					{"w", 15.25},
+					{"uom", "cm"},
+				}},
+				{"status", "A"},
+			},
+		}
+		result, _ := coll.InsertMany(context.Background(), docs)
+		fmt.Printf("InsertedIDs: %+v\n", result.InsertedIDs)
+	}
+
+	{
+		// Start Example 57
+		result, _ := coll.DeleteMany(
+			context.Background(),
+			bson.D{
+				{"status", "A"},
+			},
+		)
+		fmt.Printf("Deleted count: %+v\n", result.DeletedCount)
+	}
+
+	{
+		// Start Example 58
+		result, _ := coll.DeleteOne(
+			context.Background(),
+			bson.D{
+				{"status", "D"},
+			},
+		)
+		fmt.Printf("Deleted count: %+v\n", result.DeletedCount)
+	}
+
+	{
+		// Start Example 59
+		result, _ := coll.DeleteMany(context.Background(), bson.D{})
+		fmt.Printf("Deleted count: %+v\n", result.DeletedCount)
+	}
+}
+```
+
+
+## 实例十二 事务
+
+```
+var log = logger.New(logger.DebugLevel)
+
+func main() {
+	db := db()
+	coll := db.Collection("inventory_delete")
+
+	err := coll.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	client, err := mongo.Connect(context.TODO(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	employees := client.Database("hr").Collection("employees")
+	events := client.Database("reporting").Collection("events")
+
+	err = client.UseSession(context.Background(), func(sctx mongo.SessionContext) error {
+		err := sctx.StartTransaction(options.Transaction().
+			SetReadConcern(readconcern.Snapshot()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())),
+			)
+		if err != nil {
+			return err
+		}
+
+		_, err = employees.UpdateOne(sctx, bson.D{{"employee", 3}}, bson.D{{"$set", bson.D{{"status", "Inactive"}}}})
+		if err != nil {
+			sctx.AbortTransaction(sctx)
+			log.Printf("caught exception during transaction, aborting.")
+			return err
+		}
+
+		_, err = events.InsertOne(sctx, bson.D{{"employee", 3}, {"status", bson.D{{"new", "Inactive"}, {"old", "active"}}}})
+		if err != nil {
+			sctx.AbortTransaction(sctx)
+			log.Printf("caught exception during transaction, aborting")
+			return err
+		}
+		
+		for {
+			err = sctx.CommitTransaction(sctx)
+			switch e := err.(type) {
+			case nil:
+				return nil
+			case mongo.CommandError:
+				if e.HasErrorLabel("UnknownTransactionCommitResult") {
+					log.Printf("UnknownTransactionCommitResult, retrying commit operation...")
+					continue
+				}
+				log.Printf("Error during commit...")
+				return e
+			default:
+				log.Printf("Error during commit...")
+				return e
+			}
+		}
+	})
+}
+```
+
+
+## 实例十三 事务 commit 重试
+
+
 
