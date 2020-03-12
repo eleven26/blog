@@ -1834,5 +1834,237 @@ func main() {
 
 ## 实例十三 事务 commit 重试
 
+```
+// RunTransactionWithRetry is an example function demonstrating transaction retry logic.
+func RunTransactionWithRetry(sctx mongo.SessionContext, txnFn func(sessionContext mongo.SessionContext) error) error {
+	for {
+		err := txnFn(sctx) // Performs transaction.
+		if err == nil {
+			return nil
+		}
+
+		log.Printf("Transaction aborted. Caught exception during transaction.\n")
+
+		// If transient error, retry the whole transaction
+		if cmdErr, ok := err.(mongo.CommandError); ok && cmdErr.HasErrorLabel("TransientTransactionError") {
+			log.Printf("TransientTransactionError, retrying transaction....")
+			continue
+		}
+		return err
+	}
+}
+
+// CommitWithRetry is an example function demonstrating transaction commit with retry logic.
+func CommitWithRetry(sctx mongo.SessionContext) error {
+	for {
+		err := sctx.CommitTransaction(sctx)
+		switch e := err.(type) {
+		case nil:
+			log.Printf("Transaction committed.")
+			return nil
+		case mongo.CommandError:
+			// Can retry commit
+			if e.HasErrorLabel("UnknownTransactionCommitResult") {
+				log.Printf("UnknownTransactionCommitResult, retrying commit operation...")
+				continue
+			}
+			log.Printf("Error during commit...")
+			return e
+		default:
+			log.Printf("Error during commit...")
+			return e
+		}
+	}
+}
+
+// TransactionsExamples contains examples for transaction operations.
+func TransactionsExamples(ctx context.Context, client *mongo.Client) error {
+	_, err := client.Database("hr").Collection("employees").InsertOne(ctx, bson.D{{"pi", 3.14159}})
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Database("hr").Collection("employees").DeleteOne(ctx, bson.D{{"pi", 3.14159}})
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Database("reporting").Collection("events").InsertOne(ctx, bson.D{{"pi", 3.14159}})
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Database("reporting").Collection("events").DeleteOne(ctx, bson.D{{"pi", 3.14159}})
+	if err != nil {
+		return err
+	}
+
+	// Start Transactions Retry Example 3
+	runTransactionWithRetry := func(sctx mongo.SessionContext, txnFn func(mongo.SessionContext) error) error {
+		for {
+			err := txnFn(sctx) // Performs transactions.
+			if err == nil {
+				return nil
+			}
+
+			log.Printf("Transaction aborted. Caught exception during transaction.")
+
+			// If transient error, retry the whole transaction
+			if cmdErr, ok := err.(mongo.CommandError); ok && cmdErr.HasErrorLabel("TransientTransactionError") {
+				log.Printf("TransientTransactionError, retrying transaction...")
+				continue
+			}
+			return err
+		}
+	}
+
+	commitWithRetry := func(sctx mongo.SessionContext) error {
+		for {
+			err := sctx.CommitTransaction(sctx)
+			switch e := err.(type) {
+			case nil:
+				log.Printf("Transaction committed.")
+				return nil
+			case mongo.CommandError:
+				// Can retry commit
+				if e.HasErrorLabel("UnknownTransactionCommitResult") {
+					log.Printf("UnknownTransactionCommitResult, retrying commit operation...")
+					continue
+				}
+				log.Printf("Error during commit...\n")
+				return e
+			default:
+				log.Printf("Error during commit...\n")
+				return e
+			}
+		}
+	}
+
+	// Updates two collections in a transaction.
+	updateEmployeeInfo := func(sctx mongo.SessionContext) error {
+		employees := client.Database("hr").Collection("employees")
+		events := client.Database("reporting").Collection("events")
+
+		err := sctx.StartTransaction(options.Transaction().
+			SetReadConcern(readconcern.Snapshot()).
+			SetWriteConcern(writeconcern.New(writeconcern.WMajority())),
+		)
+		if err != nil {
+			return err
+		}
+
+		_, err = employees.UpdateOne(sctx, bson.D{{"employee", 3}}, bson.D{{"$set", bson.D{{"status", "Inactive"}}}})
+		if err != nil {
+			sctx.AbortTransaction(sctx)
+			log.Printf("caught exception during transaction, aborting.")
+			return err
+		}
+
+		_, err = events.InsertOne(sctx, bson.D{{"employee", 3}, {"status", bson.D{{"new", "Inactive"}, {"old", "Active"}}}})
+		if err != nil {
+			sctx.AbortTransaction(sctx)
+			log.Printf("caught exception during transaction, aborting.")
+			return err
+		}
+
+		return commitWithRetry(sctx)
+	}
+
+	return client.UseSessionWithOptions(
+		ctx, options.Session().SetDefaultReadPreference(readpref.Primary()),
+		func(sctx mongo.SessionContext) error {
+			return runTransactionWithRetry(sctx, updateEmployeeInfo)
+		},
+	)
+}
+```
 
 
+## 实例十四 ChangeStream
+
+```
+// ChangeStreamExamples contains examples of changestream operations.
+func ChangeStreamExamples(t *testing.T, db *mongo.Database) {
+	ctx := context.Background()
+
+	coll := db.Collection("inventory_changestream")
+	coll.Drop(context.Background())
+
+	coll.InsertOne(ctx, bson.D{{"x", int32(1)}})
+
+	var stop int32
+	doInserts := func(coll *mongo.Collection) {
+		for atomic.LoadInt32(&stop) == 0 {
+			coll.InsertOne(ctx, bson.D{{"x", 1}})
+			time.Sleep(10 * time.Microsecond)
+			coll.DeleteOne(ctx, bson.D{{"x", 1}})
+		}
+	}
+	go doInserts(coll)
+
+	{
+		// Start Changestream Example 1
+		cs, err := coll.Watch(ctx, mongo.Pipeline{})
+		defer cs.Close(ctx)
+
+		ok := cs.Next(ctx)
+		next := cs.Current
+
+		fmt.Printf("%+v\n", err)
+		fmt.Printf("%+v\n", ok)
+		fmt.Printf("%+v\n", len(next))
+	}
+
+	{
+		// Start Changestream Example 2
+		cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetFullDocument(options.UpdateLookup))
+		defer cs.Close(ctx)
+
+		ok := cs.Next(ctx)
+		next := cs.Current
+
+		fmt.Printf("%+v\n", err)
+		fmt.Printf("%+v\n", ok)
+		fmt.Printf("%+v\n", len(next))
+	}
+
+	{
+		original, err := coll.Watch(ctx, mongo.Pipeline{})
+		defer original.Close(ctx)
+
+		ok := original.Next(ctx)
+		fmt.Printf("%+v\n", err)
+		fmt.Printf("%+v\n", ok)
+
+		resumeToken := original.ResumeToken()
+
+		cs, err := coll.Watch(ctx, mongo.Pipeline{}, options.ChangeStream().SetResumeAfter(resumeToken))
+		defer cs.Close(ctx)
+
+		ok = cs.Next(ctx)
+		result := cs.Current
+
+		fmt.Printf("%+v\n", err)
+		fmt.Printf("%+v\n", ok)
+		fmt.Printf("%+v\n", len(result))
+	}
+
+	{
+		pipeline := mongo.Pipeline{bson.D{{"$match", bson.D{{"$or",
+			bson.A{
+				bson.D{{"fullDocument.username", "alice"}},
+				bson.D{{"operationType", "delete"}}}}},
+		}}}
+		cs, err := coll.Watch(ctx, pipeline)
+		defer cs.Close(ctx)
+		fmt.Printf("%+v\n", err)
+
+		ok := cs.Next(ctx)
+		next := cs.Current
+
+		fmt.Printf("%+v\n", err)
+		fmt.Printf("%+v\n", ok)
+		fmt.Printf("%+v\n", len(next))
+	}
+}
+```
