@@ -1,5 +1,5 @@
 ---
-title: Private registry push fail server gave HTTP response to HTTPS client.md
+title: Private registry push fail server gave HTTP response to HTTPS client
 date: 2019-10-23 09:16:30
 tags: Docker
 ---

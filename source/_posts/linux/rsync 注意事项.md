@@ -1,5 +1,5 @@
 ---
-title: rsync 注意事项.md
+title: rsync 注意事项
 date: 2019-08-17 16:09:00
 tags: [linux]
 ---
