@@ -4,10 +4,11 @@ date: 2020-03-29 13:01:30
 tags: [Go]
 ---
 
-1. [常量](/常量)
-2. [变量](/变量)
-3. [函数](/函数)
-    * [func Compare(a, b []byte) int](/Compare)
+1. [常量](#常量)
+2. [变量](#变量)
+3. [函数](#函数)
+    * [func Compare(a, b []byte) int](#Compare)
+    * [func Contains(b, subslice []byte) bool](#Contains)
 4. Buffer
 5. Reader
 
@@ -39,19 +40,18 @@ func Compare(a, b []byte) int
 
 按字典顺序比较两个字节切片。如果 a == b，返回 0，如果 a < b 返回 -1，如果 a > b 返回 1。
 
-
 <details>
-    <summary>实例</summary>
+    <summary>查看实例</summary>
     
     ```
-    package main
+    package golang_bytes_package_example
     
     import (
     	"bytes"
     	"fmt"
     )
     
-    func main() {
+    func ExampleCompare() {
     	// 通过将结果与零进行比较来解释比较结果
     	var a, b []byte
     
@@ -93,13 +93,46 @@ func Compare(a, b []byte) int
     		// a 不等于 b
     		fmt.Printf("a = '%s', b = '%s', a != b\n", a, b)
     	}
+    
+    	// Output:
+    	// a = 'a', b = 'b', a < b
+    	// a = 'a', b = 'a', a <= b
+    	// a = 'b', b = 'a', a > b
+    	// a = 'b', b = 'b', a >= b
+    	// a = 'b', b = 'b', a == b
+    	// a = 'b', b = 'c', a != b
     }
-    // Output:
-    // a = 'a', b = 'b', a < b
-    // a = 'a', b = 'a', a <= b
-    // a = 'b', b = 'a', a > b
-    // a = 'b', b = 'b', a >= b
-    // a = 'b', b = 'b', a == b
-    // a = 'b', b = 'c', a != b
+    
+    func ExampleSearch() {
+    	var needle []byte
+    	var haystack [][]byte // 假设是有序的
+    
+    	// 模拟测试数据
+    	needle = []byte("ccb")
+    	haystack = [][]byte{
+    		[]byte("cca"),
+    		[]byte("ccb"),
+    		[]byte("ccc"),
+    	}
+    
+    	i := sort.Search(len(haystack), func(i int) bool {
+    		// Return haystack[i] >= needle.
+    		return bytes.Compare(haystack[i], needle) >= 0
+    	})
+    	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
+    		fmt.Println("Found it!")
+    	}
+    
+    	// Output:
+    	// Found it!
+    }
     ```
 </details>
+
+### Contains
+
+```
+func Contains(b, subslice []byte) bool
+```
+
+
