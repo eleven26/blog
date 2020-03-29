@@ -9,6 +9,7 @@ tags: [Go]
 3. [函数](#函数)
     * [func Compare(a, b []byte) int](#Compare)
     * [func Contains(b, subslice []byte) bool](#Contains)
+    * [func ContainsAny(b []byte, chars string) bool](#ContainsAny)
 4. Buffer
 5. Reader
 
@@ -41,7 +42,7 @@ func Compare(a, b []byte) int
 按字典顺序比较两个字节切片。如果 a == b，返回 0，如果 a < b 返回 -1，如果 a > b 返回 1。
 
 <details>
-    <summary>查看实例</summary>
+    <summary>点此查看实例</summary>
     
     ```
     package golang_bytes_package_example
@@ -115,6 +116,7 @@ func Compare(a, b []byte) int
     		[]byte("ccc"),
     	}
     
+        // haystack 需要是有序的
     	i := sort.Search(len(haystack), func(i int) bool {
     		// Return haystack[i] >= needle.
     		return bytes.Compare(haystack[i], needle) >= 0
@@ -135,4 +137,67 @@ func Compare(a, b []byte) int
 func Contains(b, subslice []byte) bool
 ```
 
+检查 `b` 里面是否包含了 `subslice` 字节序列。
 
+<details>
+    <summary>点此查看实例</summary>
+    
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleContains() {
+    	fmt.Println(bytes.Contains([]byte("seafood"), []byte("foo")))
+    	fmt.Println(bytes.Contains([]byte("seafood"), []byte("bar")))
+    	fmt.Println(bytes.Contains([]byte("seafood"), []byte("")))
+    	fmt.Println(bytes.Contains([]byte(""), []byte("")))
+    
+    	// Output:
+    	// true
+    	// false
+    	// true
+    	// true
+    }
+    ```
+</details>
+
+
+### ContainsAny
+
+```
+func ContainsAny(b []byte, chars string) bool
+```
+
+`ContainsAny` 检查字符串 `chars` utf-8编码的字符切片里面是否有任何字节在 b 里面。
+
+> chars 是空字符串的时候都返回 false
+
+<details>
+    <summary>点此查看实例</summary>
+    
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleContainsAny() {
+    	fmt.Println(bytes.ContainsAny([]byte("I like seafood."), "fAo!"))
+    	fmt.Println(bytes.ContainsAny([]byte("I like seafood."), "去是伟大的."))
+    	fmt.Println(bytes.ContainsAny([]byte("I like seafood."), ""))
+    	fmt.Println(bytes.ContainsAny([]byte(""), ""))
+    
+    	// Output:
+    	// true
+    	// true
+    	// false
+    	// false
+    }
+    ```
+</details>
