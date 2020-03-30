@@ -1397,6 +1397,19 @@ func TrimLeft(s []byte, cutset string) []byte
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleTrimLeft() {
+    	fmt.Print(string(bytes.TrimLeft([]byte("453gopher8257"), "0123456789")))
+    
+    	// Output:
+    	// gopher8257
+    }
     ```
 </details>
 
@@ -1413,6 +1426,24 @@ func TrimLeftFunc(s []byte, f func(r rune) bool) []byte
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    	"unicode"
+    )
+    
+    func ExampleTrimLeftFunc() {
+    	fmt.Println(string(bytes.TrimLeftFunc([]byte("go-gopher"), unicode.IsLetter)))
+    	fmt.Println(string(bytes.TrimLeftFunc([]byte(".go-gopher!"), unicode.IsPunct)))
+    	fmt.Println(string(bytes.TrimLeftFunc([]byte("1234go-gopher!567"), unicode.IsNumber)))
+    
+    	// Output:
+    	// -gopher
+    	// go-gopher!
+    	// go-gopher!567
+    }
     ```
 </details>
 
@@ -1423,10 +1454,28 @@ func TrimLeftFunc(s []byte, f func(r rune) bool) []byte
 func TrimPrefix(s, prefix []byte) []byte
 ```
 
+和 `Trim` 类似，但是是移除 `prefix` 指定的前缀。
+
 <details>
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleTrimPrefix() {
+    	var b = []byte("Goodbye,, world!")
+    	b = bytes.TrimPrefix(b, []byte("Goodbye,"))
+    	b = bytes.TrimPrefix(b, []byte("See ya,"))
+    	fmt.Printf("Hello%s", b)
+    
+    	// Output:
+    	// Hello, world!
+    }
     ```
 </details>
 
@@ -1437,10 +1486,25 @@ func TrimPrefix(s, prefix []byte) []byte
 func TrimRight(s []byte, cutset string) []byte
 ```
 
+和 `TrimLeft` 类似，只不过是移除 `s` 末尾的字符。
+
 <details>
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleTrimRight() {
+    	fmt.Print(string(bytes.TrimRight([]byte("453gopher8257"), "0123456789")))
+    
+    	// Output:
+    	// 453gopher
+    }
     ```
 </details>
 
@@ -1451,10 +1515,30 @@ func TrimRight(s []byte, cutset string) []byte
 func TrimRightFunc(s []byte, f func(r rune) bool) []byte
 ```
 
+和 `TrimRight` 类似，只不过可以接收一个回调来筛选需要移除的字符。
+
 <details>
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    	"unicode"
+    )
+    
+    func ExampleTrimRightFunc() {
+    	fmt.Println(string(bytes.TrimRightFunc([]byte("go-gopher"), unicode.IsLetter)))
+    	fmt.Println(string(bytes.TrimRightFunc([]byte("go-gopher!"), unicode.IsPunct)))
+    	fmt.Println(string(bytes.TrimRightFunc([]byte("1234go-gopher!567"), unicode.IsNumber)))
+    
+    	// Output:
+    	// go-
+    	// go-gopher
+    	// 1234go-gopher!
+    }
     ```
 </details>
 
@@ -1465,10 +1549,25 @@ func TrimRightFunc(s []byte, f func(r rune) bool) []byte
 func TrimSpace(s []byte) []byte
 ```
 
+移除字节切片 `s` 前后的空白字符。
+
 <details>
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleTrimSpace() {
+    	fmt.Printf("%s", bytes.TrimSpace([]byte(" \t\n a lone gopher \n\t\r\n")))
+    
+    	// Output:
+    	// a lone gopher
+    }
     ```
 </details>
 
@@ -1479,9 +1578,458 @@ func TrimSpace(s []byte) []byte
 func TrimSuffix(s, suffix []byte) []byte
 ```
 
+移除字节切片 `s` 的后缀。
+
 <details>
     <summary>点此查看实例</summary>
 
     ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"os"
+    )
+    
+    func ExampleTrimSuffix() {
+    	var b = []byte("Hello, goodbye, etc!")
+    	b = bytes.TrimSuffix(b, []byte("goodbye, etc!"))
+    	b = bytes.TrimSuffix(b, []byte("gopher"))
+    	b = append(b, bytes.TrimSuffix([]byte("world!"), []byte("x!"))...)
+    	os.Stdout.Write(b)
+    
+    	// Output:
+    	// Hello, world!
+    }
     ```
 </details>
+
+
+
+## Buffer
+
+一个 `Buffer` 是一个大小不固定的字节缓冲区。`Buffer` 的零值是一个空的缓冲区。
+
+<details>
+    <summary>点此查看实例</summary>
+
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    	"os"
+    )
+    
+    func ExampleBuffer() {
+    	var b bytes.Buffer // 不需要初始化
+    	b.Write([]byte("Hello "))
+    	fmt.Fprintf(&b, "world!")
+    	b.WriteTo(os.Stdout)
+    
+    	// Output:
+    	// Hello world!
+    }
+    ```
+</details>
+
+<details>
+    <summary>点此查看实例(Reader)</summary>
+
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"encoding/base64"
+    	"io"
+    	"os"
+    )
+    
+    func ExampleBuffer1() {
+    	// A Buffer can turn a string or a []byte into an io.Reader.
+    	buf := bytes.NewBufferString("R29waGVycyBydWxlIQ==")
+    	dec := base64.NewDecoder(base64.StdEncoding, buf)
+    	io.Copy(os.Stdout, dec)
+    
+    	// Output:
+    	// Gophers rule!
+    }
+    ```
+</details>
+
+
+### NewBuffer
+
+```
+func NewBuffer(buf []byte) *Buffer
+```
+
+`NewBuffer` 使用 `buf` 作为其初始内容创建并初始化一个新的 `Buffer`。 新的 `Buffer` 拥有 `buf` 的所有权，并且在此调用之后，调用方不应使用buf。 `NewBuffer` 旨在准备一个 `Buffer` 以读取现有数据。 它也可以用来设置用于写入的内部缓冲区的初始大小。 为此，`buf` 应该具有所需的容量，但长度为零。
+
+在大多数情况下，`new(Buffer)`（或仅声明一个 `Buffer` 变量）足以初始化 `Buffer`。
+
+
+### NewBufferString
+
+```
+func NewBufferString(s string) *Buffer
+```
+
+`NewBufferString` 使用字符串 `s` 作为其初始内容创建并初始化一个新的 `Buffer`。目的是准备一个缓冲区以读取现有的字符串。
+
+在大多数情况下，`new(Buffer)` (或仅声明一个 `Buffer` 变量) 足以初始化 `Buffer`。
+
+
+## Buffer 方法
+
+### Bytes
+
+```
+func (b *Buffer) Bytes() []byte
+```
+
+字节返回长度为 `b.Len()` 的切片，其中包含缓冲区的未读部分。 该片仅在下一次修改缓冲区之前有效（即，仅在下一次调用诸如 `Read`，`Write`，`Reset` 或 `Truncate` 之类的方法之前）才有效。 切片至少在下一次缓冲区修改之前就将缓冲区内容作为别名，因此对切片的立即更改将影响将来读取的结果。
+
+
+### Cap
+
+```
+func (b *Buffer) Cap() int
+```
+
+`Cap` 返回缓冲区底层字节切片的容量，即为缓冲区数据分配的总空间。
+
+
+### Grow
+
+```
+func (b *Buffer) Grow(n int)
+```
+
+如有必要，可以增加缓冲区的容量，以保证另外 n 个字节的空间。在 `Grow(n)` 之后，至少可以将 n 个字节写入缓冲区，而无需进行其他分配。如果 n 为负数，`Grow` 会 panic。如果缓冲区无法增长，会引起一个 `ErrTooLarge` 的 panic。
+
+
+### Len
+
+```
+func (b *Buffer) Len() int
+```
+
+`Len` 返回缓冲区未读部分的字节数；`b.Len() == len(b.Bytes())`
+
+
+<details>
+    <summary>点此查看实例</summary>
+    
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleBufferLen() {
+    	var b bytes.Buffer
+    	b.Grow(64)
+    	b.Write([]byte("abcde"))
+    	fmt.Printf("%d", b.Len())
+    
+    	// Output:
+    	// 5
+    }
+    ```
+</details>
+
+
+### Next
+
+```
+func (b *Buffer) Next(n int) []byte
+```
+
+`Next` 返回一个包含缓冲区中接下来 `n` 个字节的切片，使缓冲区前进，就好像该字节已由 `Read` 返回。如果缓冲区中的字节数少于 `n` 个，则 `Next` 返回整个缓冲区。切片仅在下一次调用 `read` 或 `write` 方法之前才有效。
+
+
+### Read
+
+```
+func (b *Buffer) Read(p []byte) (n int, err error)
+```
+
+`Read` 从缓冲区中读取下一个 `len(p)` 字节，或者直到缓冲区耗尽为止。返回值 `n` 是读取的字节数。如果缓冲区没有数据要返回，则 `err` 为 `io.EOF`（除非 `len(p)` 为 0）；否则为零。
+
+
+### ReadByte
+
+```
+func (b *Buffer) ReadByte() (byte, error)
+```
+
+`ReadByte` 读取并从缓冲区返回下一个字节。如果没有可用的字节，则返回错误 `io.EOF`。
+
+
+### ReadBytes
+
+```
+func (b *Buffer) Readbytes(delim byte) (line []byte, err error)
+```
+
+`ReadBytes` 读取直到输入中第一次出现 `delim` 为止，并返回一个包含数据的切片，该数据直到并包括 `delim`。如果 `ReadBytes` 在找到定界符之前遇到错误，它将返回错误之前读取的数据和错误本身（通常为 `io.EOF`）。并且仅当返回的数据未以 `delim` 结尾时，`ReadBytes` 返回 `err != nil`。
+
+
+### ReadFrom
+
+```
+func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error)
+```
+
+`ReadFrom` 从 `r` 读取数据，直到 `EOF` 并将其附加到缓冲区，然后根据需要增大缓冲区。返回值 `n` 是读取的字节数。读取期间遇到的除 `io.EOF` 以外的任何错误也将返回。如果缓冲区太大，`ReadFrom` 会引发 `ErrTooLarge` panic。
+
+
+### ReadRune
+
+```
+func (b *Buffer) ReadRune() (r rune, size int, err error)
+```
+
+`ReadRune` 从缓冲区读取并返回下一个 UTF-8 编码的 Unicode 字符。如果没有可用的字节，则返回的错误是 `io.EOF`。如果字节是错误的 UTF-8 编码，则它消耗一个字节并返回 U+FFFD，1。
+
+
+### ReadString
+
+```
+func (b *Buffer) ReadString(delim type) (line string, err error)
+```
+
+`ReadString` 读取直到输入中第一次出现 `delim` 为止，并返回一个字符串，其中包含直到定界符（包括定界符）的数据。如果 `ReadString` 在找到定界符之前遇到错误，它将返回错误之前读取的数据和错误本身（通常为 `io.EOF`）。当且仅当返回的数据未以 `delim` 结尾时，`ReadString` 才返回 `err != nil`。
+
+
+### Reset
+
+```
+func (b *Buffer) Reset()
+```
+
+重置会将缓冲区重置为空，但会保留基础存储空间以供将来的写操作使用。重置与 `Truncate(0)` 相同。
+
+
+### String
+
+```
+func (b *Buffer) String()
+```
+
+`String` 以字符串形式返回缓冲区未读部分的内容。如果 `Buffer` 是 `nil` 指针，则返回 "<nil>"。
+
+要更有效地构建字符串，请常见 `strings.Builder` 类型。
+
+
+### Truncate
+
+```
+func (b *Buffer) Truncate(n int)
+```
+
+`Truncate` 会丢弃缓冲区前 `n` 个未读取字节以外的所有字节，但会继续使用相同的已分配存储。如果 `n` 为负数或大于缓冲区的长度，则会发生 panic.
+
+
+### UnreadByte
+
+```
+func (b *Buffer) UnreadByte() error
+```
+
+`UnreadByte` 将最近一次成功读取操作的最后一个字节重新设置为未读取。如果自从上次成功读取后有写缓冲区操作，或者上次读取有错误，或者上次读取到 0 字节，`UnreadByte` 返回一个错误。
+
+
+### UnreadRune
+
+```
+func (b *Buffer) UnreadRune() error
+```
+
+和 `UnreadByte` 类似，只不过操作的是 `rune`
+
+
+### Write
+
+```
+func (b *Buffer) Write(p []byte) (n int, err error)
+```
+
+写操作会将 `p` 的内容附加到缓冲区，并根据需要扩展缓冲区。返回值 `n` 是 `p` 的长度；错误始终为零。如果缓冲区太大，则 `Write` 会引发 `ErrTooLarge` panic。
+
+
+### WriteByte
+
+```
+func (b *Buffer) WriteByte(c byte) error
+```
+
+`WriteByte` 将字节 `c` 附加到缓冲区，根据需要增大缓冲区。返回的错误始终为 `nil`，但包含该错误以匹配 `bufio.Writer` 的 `WriteByte`。如果缓冲区太大，`WriteByte` 会引发 `ErrTooLarge` panic。
+
+
+### WriteRune
+
+```
+func (b *Buffer) WriteRune(r rune) (n int, err error)
+```
+
+和 `ReadRune` 类似，不过 `WriteRune` 是写入一个 `rune` 类型的数据。
+
+
+### WriteString
+
+```
+func (b *Buffer) WriteString(s string) (n int, err error)
+``` 
+
+`WriteString` 将 `s` 的内容附加到缓冲区，根据需要增大缓冲区。返回值 `n` 是 `s` 的长度；错误始终为 `nil`。如果缓冲区太大，引发 `ErrTooLarge` panic。
+
+
+### WriteTo
+
+```
+func (b *Buffer) WriteTo(w io.Writer) (n int64, err error)
+```
+
+`WriteTo` 将数据写入 `w`，直到缓冲区耗尽或发生错误。返回值 `n` 是写入的字节数。它始终适合 `int`，但与 `io.WriterTo` 接口匹配为 `int64`。写入期间遇到的任何错误也将返回。
+
+
+
+## Reader
+
+`Reader` 通过读取字节切片来实现 `io.Reader`, `io.ReaderAt`, `io.WriterTo`, `io.Seeker`, `io.ByteScanner` 和 `io.RuneScanner` 接口。与 `Buffer` 不同，`Reader` 是只读的，并支持查找。`Reader` 的零值的操作类似空切片的 `Reader`。
+
+
+### NewReader
+
+```
+func NewReader(b []byte) *Reader
+```
+
+`NewReader` 从 `b` 返回一个新的 `Reader`，这个 `Reader` 将会从 `b` 读取数据。
+
+
+### Len
+
+```
+func (r *Reader) Len() int
+```
+
+`Len` 返回切片中未读部分的长度
+
+<details>
+    <summary>点此查看实例</summary>
+    
+    ```
+    package golang_bytes_package_example
+    
+    import (
+    	"bytes"
+    	"fmt"
+    )
+    
+    func ExampleReaderLen() {
+    	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
+    	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
+    
+    	// Output:
+    	// 3
+    	// 16
+    }
+    ```
+</details>
+
+
+### Read
+
+```
+func (r *Reader) Read(b []byte) (n int, err error)
+```
+
+`Read` 实现了 `io.Reader` 接口。
+
+
+### ReadAt
+
+```
+func (r *Reader) ReadAt(b []byte, off int64) (n int, err error)
+```
+
+`ReadAt` 实现了 `io.ReaderAt` 接口。
+
+
+### ReadByte
+
+```
+func (r *Reader) ReadByte() (byte, error)
+```
+
+`ReadByte` 实现了 `io.ByteReader` 接口
+
+
+### ReadRune
+
+```
+func (r *Reader) ReadRune() (ch rune, size int, err error)
+```
+
+`ReadRune` 实现了 `io.RuneReader` 接口
+
+
+### Reset
+
+```
+func (r *Reader) Reset(b []byte)
+```
+
+`Reset` 将 `Reader` 的内容重置为 `b` 字节切片。
+
+
+### Seek
+
+```
+func (r *Reader) Seek(offset int64, whence int) (int64, error)
+```
+
+`Seek` 实现了 `io.Seeker` 接口
+
+
+### Size
+
+```
+func (r *Reader) Size() int64
+```
+
+`Size` 返回了 `Reader` 底层切片的原始长度。`Size` 是可通过 `ReadAt` 读取的字节数。返回的值始终相同，并且不受任何其他方法调用的影响。
+
+
+### UnreadByte
+
+```
+func (r *Reader) UnreadByte() error
+```
+
+`UnreadByte` 在实现 `io.ByteScanner` 接口时对 `ReadByte` 进行了补充。
+
+
+### UnreadRune
+
+```
+func (r *Reader) UnreadRune() error
+```
+
+`UnreadRune` 在实现 `io.RuneScanner` 接口方面对 `ReadRune` 进行了补充。
+
+
+### WriteTo
+
+```
+func (r *Reader) WriteTo(w io.Writer) (n int64, err error)
+```
+
+`WriteTo` 实现了 `io.WriterTo` 接口。
