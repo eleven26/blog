@@ -1950,6 +1950,8 @@ func (b *Buffer) Write(p []byte) (n int, err error)
 func (b *Buffer) WriteByte(c byte) error
 ```
 
+写入一个字节到 Buffer。
+
 `WriteByte` 将字节 `c` 附加到缓冲区，根据需要增大缓冲区。返回的错误始终为 `nil`，但包含该错误以匹配 `bufio.Writer` 的 `WriteByte`。如果缓冲区太大，`WriteByte` 会引发 `ErrTooLarge` panic。
 
 
@@ -1966,7 +1968,9 @@ func (b *Buffer) WriteRune(r rune) (n int, err error)
 
 ```
 func (b *Buffer) WriteString(s string) (n int, err error)
-``` 
+```
+
+写入一个字符串到 Buffer。 
 
 `WriteString` 将 `s` 的内容附加到缓冲区，根据需要增大缓冲区。返回值 `n` 是 `s` 的长度；错误始终为 `nil`。如果缓冲区太大，引发 `ErrTooLarge` panic。
 
