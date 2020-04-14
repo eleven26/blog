@@ -34,6 +34,14 @@ socks5  0.0.0.0 1086
 proxychains4 telnet google.com 80
 ```
 
+## git clone 使用 proxychains
+
+```
+proxychains4 git clone https://github.com/php/php-src.git
+```
+
+> 用法就是在命令前面加上 proxychians
+
 ## 其他可以尝试一下的方式
 
 [git-clone-works-with-https-but-not-ssh-when-using-proxy](https://stackoverflow.com/questions/59384945/git-clone-works-with-https-but-not-ssh-when-using-proxy)
