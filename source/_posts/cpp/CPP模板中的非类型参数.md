@@ -6,7 +6,7 @@ tags: [C++]
 
 模板是一种泛型技术，目的是将数据的类型参数化，以增强 C++ 语言（强类型语言）的灵活性。C++ 对模板的支持非常自由，模板中除了可以包含类型参数，还可以包含非类型参数，例如：
 
-```
+```C++
 template<typename T, int N> class Demo{ };
 template<class T, int N> void func(T (&arr)[N]);
 ```
@@ -20,7 +20,7 @@ T 是一个类型参数，它通过 `class` 或 `typename` 关键字指定。N �
 
 在 《C++函数模板的重载》一节中，我们通过 Swap() 函数来交换两个数组的值，其原型为：
 
-```
+```C++
 template<typename T> void Swap(T a[], T b[], int len);
 ```
 
@@ -30,7 +30,7 @@ template<typename T> void Swap(T a[], T b[], int len);
 
 多出来的形参 len 给编码带来了不便，我们可以借助模板中的非类型参数将它消除，请看下面的代码：
 
-```
+```C++
 template<typename T, unsigned N> void Swap(T (&a)[N], T(&b)[N]) {
     T temp;
     for (int i=0; i<N; i++) {
@@ -55,7 +55,7 @@ Swap(a, b);
 
 下面是一个完整的示例：
 
-```
+```C++
 #include <iostream>
 using namespace std;
 
@@ -111,7 +111,7 @@ template<typename T, unsigned N> void printArray(T (&arr)[N]) {
 
 C/C++ 规定，数组一旦定义后，它的长度就不能改变了；换句话说，数组容量不能动态地增大或者减小。这样的数组称为静态数组（static array）。静态数组有时候会给编写代码带来不便，我们可以通过自定义的 Array 类来实现动态数组（dynamic array）。所谓动态数组，是指数组容量能够在使用的过程中随时增大或减小。
 
-```
+```C++
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
@@ -247,7 +247,7 @@ capacity() 成员函数是 Array 类的关键，它使得数组容量可以动�
 
 对于上面的 Swap() 函数，下面的调用就是错误的：
 
-```
+```C++
 int len;
 cin >> len;
 int a[len];

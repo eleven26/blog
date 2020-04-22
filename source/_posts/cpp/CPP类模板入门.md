@@ -28,7 +28,7 @@ template<typename 类型参数1, typename 类型参数2, ...> class 类名 {
 
 这个时候就可以使用类模板，请看下面的代码：
 
-```
+```C++
 template<typename T1, typename T2> // 这里不能有分号
 class Point {
 public:
@@ -59,7 +59,7 @@ template<typename 类型参数1, typename 类型参数2, ...>
 
 下面就对 Point 类的成员函数进行定义：
 
-```
+```C++
 template<typename T1, typename T2> // 模板头
 T1 Point<T1, T2>::getX() const /* 函数头 */ {
     return m_x;
@@ -88,7 +88,7 @@ void Point<T1, T2>::setY(T2 y) {
 
 上面的两段代码完成了类的定义，接下来就可以使用该类创建对象了。使用类模板创建对象时，需要指明具体的数据类型。请看下面的代码：
 
-```
+```C++
 Point<int, int> p1(10, 20);
 Point<int, float> p2(10, 15.5);
 Point<float, char*> p3(12.4, "东经180度");
@@ -98,14 +98,14 @@ Point<float, char*> p3(12.4, "东经180度");
 
 除了对象变量，我们也可以使用对象指针的方式来实例化：
 
-```
+```C++
 Point<float, float> *p1 = new Point<float, float>(10.6, 109.3);
 Point<char*, char*> *p = new Point<char*, char*>("东经180度", "北纬210度");
 ```
 
 需要注意的是，赋值号两边都要指明具体的数据类型，且要保持一致。下面的写法是错误的：
 
-```
+```C++
 // 赋值号两边的数据类型不一致
 Point<float, float> *p = new Point<float, int>(10.6, 109);
 // 赋值号右边没有指明数据类型
@@ -117,7 +117,7 @@ Point<float, float> *p = new Point(10.6, 109);
 
 将上面的类定义和类实例化的代码整合起来，构成一个完整的示例，如下所示：
 
-```
+```C++
 #include<iostream>
 using namespace std;
 
@@ -182,7 +182,7 @@ x=东经180度, y=北纬210度
 
 用类模板实现可变长数组：
 
-```
+```C++
 #include<iostream>
 #include<cstring>
 using namespace std;

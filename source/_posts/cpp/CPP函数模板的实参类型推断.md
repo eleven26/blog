@@ -6,13 +6,13 @@ tags: [C++]
 
 在使用类模板创建对象时，程序员需要显式的指明实参（也就是具体的类型）。例如对于下面的 Point 类：
 
-```
+```C++
 template<typename T1, typename T2> class Point;
 ```
 
 我们可以在栈上创建对象，也可以在堆上创建对象。
 
-```
+```C++
 Point<int, int> p1(10, 20); // 在栈上创建对象
 Point<char*, char*> *p = new Point<char*, char*>("东经180度", "北纬210度"); // 在堆上创建对象
 ```
@@ -21,7 +21,7 @@ Point<char*, char*> *p = new Point<char*, char*>("东经180度", "北纬210度")
 
 而对于函数模板，调用函数时可以不显式地指明实参（也就是具体的类型）。请看下面的例子：
 
-```
+```C++
 // 函数声明
 template<typename T> void Swap(T &a, T &b);
 
@@ -55,14 +55,14 @@ Swap(f1, f2);
 
 例如有下面两个函数原型：
 
-```
+```C++
 void func1(int n, float f);
 void func2(int *arr, const char *str);
 ```
 
 它们具体的调用形式为：
 
-```
+```C++
 int nums[5];
 char *url = "http://baidu.com";
 // 12.5 会从 double 转换为 int，45 会从 int 转换为 float
@@ -75,7 +75,7 @@ func2(nums, url);
 
 例如有下面几个函数模板：
 
-```
+```C++
 template<typename T> void func1(T a, T b);
 template<typename T> void func2(T *buffer);
 template<typename T> void func3(const T &stu);
@@ -85,7 +85,7 @@ template<typename T> void func5(T &a);
 
 它们具体的调用形式为：
 
-```
+```C++
 int name[20];
 Student stu1("CPP", 20, 96.5); //创建一个 Student 类型的对象
 
@@ -106,13 +106,13 @@ func5(name); // name 的类型依然为 int[20]，不会转换为 int*，所以 
 
 可以发现，当函数形参是引用类型时，数组不会转换为指针。这个时候读者要注意下面这样的函数模板：
 
-```
+```C++
 template<typename T> void func(T &a, T &b);
 ```
 
 如果它的具体调用形式为：
 
-```
+```C++
 int str1[20];
 int str2[10];
 func(str1, str2);
@@ -127,7 +127,7 @@ func(str1, str2);
 
 下面是一个实参推断失败的例子：
 
-```
+```C++
 template<typename T1, typename T2> void func(T1 a) {
     T2 b;
 }
@@ -139,7 +139,7 @@ func() 有两个类型参数，分别是 T1 和 T2，但是编译器只能从函
 
 "为函数模板显式地指明实参" 和 "为类模板显式地指明实参" 的形式是类似的，就是在函数名后面添加尖括号 `<>`，里面包含具体的类型。例如对于上面的 func()，我们这样来指明实参：
 
-```
+```C++
 func<int, int>(10);
 ```
 
@@ -147,7 +147,7 @@ func<int, int>(10);
 
 对于上面的 func()，虽然只有 T2 的类型不能自动推断出来，但是由于它位于类型参数列表的尾部，所以必须同时指明 T1 和 T2 的类型。对代码稍微作出修改：
 
-```
+```C++
 template<typename T1, typename T2> void func(T2 a) {
     T1 b;
 }
@@ -166,13 +166,13 @@ func<int, int>(20); // 指明 T1、T2 的类型
 
 例如对于下面的函数模板：
 
-```
+```C++
 template<typename T> void func(T a, T b);
 ```
 
 它的具体调用形式如下：
 
-```
+```C++
 func(10, 23.5); //Error
 func<float>(20, 93.7); // Correct
 ```

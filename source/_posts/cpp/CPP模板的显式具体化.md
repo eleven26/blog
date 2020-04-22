@@ -8,7 +8,7 @@ C++ 没有办法限制类型参数的范围，我们可以使用任意一种类�
 
 例如有下面的函数模板，它用来获取两个变量中较大的一个：
 
-```
+```C++
 template<class T> const T& Max(cosnt T& a, const T& b) {
     return a > b ? a : b;
 }
@@ -29,7 +29,7 @@ template<class T> const T& Max(cosnt T& a, const T& b) {
 
 在讲解函数模板的显式具体化语法之前，我们先来看一个显式具体化的例子：
 
-```
+```C++
 #include<iostream>
 #include<string>
 using namespace std;
@@ -93,7 +93,7 @@ Max 只有一个类型参数 T，并且已经被具体化为 STU 了，这样整
 
 另外，`Max<STU>` 中的 `STU` 是可选的，因为函数的形参已经表明，这是 STU 类型的一个具体化，编译器能够逆推出 T 的具体类型。简化后的函数声明为：
 
-```
+```C++
 template<> const STU& Max(const STU& a, const STU& b);
 ```
 
@@ -106,7 +106,7 @@ template<> const STU& Max(const STU& a, const STU& b);
 
 除了函数模板，类模板也可以显式具体化，并且它们的语法是类似的。
 
-```
+```C++
 #include <iostream>
 using namespace std;
 
@@ -170,7 +170,7 @@ x=东经180度 | y=北纬210度
 
 仍然以 Point 为例，假设我们现在希望 "只要横坐标 x 是字符串类型" 就以 `|` 来分隔输出结果，而不管纵坐标 y 是什么类型，这种要求就可以使用部分显式具体化技术来满足。请看下面的代码：
 
-```
+```C++
 #include <iostream>
 
 using namespace std;

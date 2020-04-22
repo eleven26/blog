@@ -12,7 +12,7 @@ tags: [C++]
 
 例如，给定下面的函数模板和函数调用：
 
-```
+```C++
 template<typename T> void Swap(T &a, T &b) {
     T temp = a;
     a = b;
@@ -34,7 +34,7 @@ int main()
 
 编译器会根据不同的实参实例化出不同版本的 Swap() 函数。对于 Swap(n1, n2) 调用，编译器会生成并编译一个 Swap() 版本，其中 T 被替换为 int：
 
-```
+```C++
 void Swap(int &a, int &b) {
     int temp = a;
     a = b;
@@ -50,7 +50,7 @@ void Swap(int &a, int &b) {
 
 请看下面的例子：
 
-```
+```C++
 #include <iostream>
 using namespace std;
 

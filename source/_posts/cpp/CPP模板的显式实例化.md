@@ -13,7 +13,7 @@ tags: [C++]
 
 以上节讲到的 Swap() 函数为例，针对 double 类型的显式实例化代码为：
 
-```
+```C++
 template void Swap(double &a, double &b);
 ```
 
@@ -33,7 +33,7 @@ extern template void Swap(double &a, double &b);
 
 func.cpp
 
-```
+```C++
 //交换两个数的值
 template<typename T> void Swap(T &a, T &b){
     T temp = a;
@@ -60,7 +60,7 @@ template void Swap(double &a, double &b); // 显式实例化定义
 
 func.h
 
-```
+```C++
 #ifndef _FUNC_H
 #define _FUNC_H
 
@@ -72,7 +72,7 @@ void bubble_sort(int arr[], int n);
 
 main.cpp
 
-```
+```C++
 #include <iostream>
 #include "func.h"
 using namespace std;
@@ -98,13 +98,13 @@ int main(){
 
 类模板的显式实例化和函数模板类似。以上节的 Point 类为例，针对 char* 类型的显式实例化（定义形式）代码为：
 
-```
+```C++
 template class Point<char*, char*>;
 ```
 
 相应地，它的声明形式为：
 
-```
+```C++
 extern template class Point<char*, char*>;
 ```
 
@@ -116,7 +116,7 @@ extern template class Point<char*, char*>;
 
 point.cpp
 
-```
+```C++
 #include<iostream>
 #include "point.h"
 using namespace std;
@@ -133,7 +133,7 @@ template class Point<int, int>;
 
 point.h
 
-```
+```C++
 #ifndef _POINT_H
 #define _POINT_H
 
@@ -157,7 +157,7 @@ private:
 
 main.cpp
 
-```
+```C++
 #include <iostream>
 #include "point.h"
 using namespace std;
@@ -184,7 +184,7 @@ int main(){
 
 函数模板和类模板的实例化语法是类似的，我们不妨对它们做一下总结：
 
-```
+```C++
 extern template declaration; // 实例化声明
 template declaration; // 实例化定义
 ```

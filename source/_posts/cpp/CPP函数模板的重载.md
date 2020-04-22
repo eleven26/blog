@@ -8,7 +8,7 @@ tags: [C++]
 
 比如，交换两个变量的值，有两个方法，一个是使用指针，另一个是使用引用：
 
-```
+```C++
 // 方案1：使用指针
 template<typename T> void Swap(T *a, T *b) {
     T temp = *a;
@@ -32,7 +32,7 @@ template<class T> void Swap(T &a, T &b) {
 
 交换两个数组唯一的办法就是逐个交换所有的数组元素，请看下面的代码：
 
-```
+```C++
 template<typename T> void Swap(T a[], T b[], int len) {
     T temp;
     for (int i = 0; i < len; i++) {
@@ -47,7 +47,7 @@ template<typename T> void Swap(T a[], T b[], int len) {
 
 下面是一个重载函数模板的完整示例：
 
-```
+```C++
 #include<iostream>
 using namespace std;
 

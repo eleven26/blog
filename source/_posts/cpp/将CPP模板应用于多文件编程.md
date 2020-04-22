@@ -27,7 +27,7 @@ tags: [C++]
 
 func.cpp
 
-```
+```C++
 // 交换两个数的值
 template<typename T> void Swap(T &a, T &b) {
     T temp = a;
@@ -52,7 +52,7 @@ void bubble_sort(int arr[], int n) {
 
 func.h
 
-```
+```C++
 #ifndef _FUNC_H
 #define _FUNC_H
 
@@ -64,7 +64,7 @@ void bubble_sort(int arr[], int n);
 
 main.cpp
 
-```
+```C++
 #include "func.h"
 
 int main()
@@ -89,7 +89,7 @@ gcc func.cpp main.cpp
 
 编译产生了一个链接错误，意思是无法找到 `void Swap<double>(double&, double&)` 这个函数。主函数 main() 中共调用了两个版本的 Swap() 函数，它们的原型分别是：
 
-```
+```C++
 void Swap<int>(int&, int&);
 void Swap<double>(double&, double&);
 ```
@@ -107,7 +107,7 @@ void Swap<double>(double&, double&);
 
 point.h
 
-```
+```C++
 #ifndef _POINT_H
 #define _POINT_H
 
@@ -132,7 +132,7 @@ private:
 
 point.cpp
 
-```
+```C++
 #include <iostream>
 #include "point.h"
 using namespace std;
@@ -145,7 +145,7 @@ void Point<T1, T2>::display() const {
 
 main.cpp
 
-```
+```C++
 #include <iostream>
 #include "point.h"
 using namespace std;

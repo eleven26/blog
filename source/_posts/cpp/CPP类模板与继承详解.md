@@ -36,7 +36,7 @@ int main() {
 
 编译到第 30 行，编译器用 int 替换类模板 B 中的 T1，用 double 替换 T2，生成 B<int, double> 类如下：
 
-```
+```C++
 class B<int, double>: public A <double, int>
 {
     int v3;
@@ -46,7 +46,7 @@ class B<int, double>: public A <double, int>
 
 B<int, double> 的基类是 A<double, int>。于是编译器就要用 double 替换类模板 A 中的 T1，用 int 替换 T2，生成 A<double, int> 类如下：
 
-```
+```C++
 class A<double, int> {
     double v1;
     int v2;
@@ -58,7 +58,7 @@ class A<double, int> {
 
 ## 类模板从模板类派生
 
-```
+```C++
 template<class T1, class T2>
 class A {
     T1 v1;
@@ -81,7 +81,7 @@ A<int, double> 是一个具体类的名字，而且它是一个模板类，因�
 
 ## 类模板从普通类派生
 
-```
+```C++
 class A{ int v1; };
 template<class T>
 class B: public A {T v;};
@@ -94,7 +94,7 @@ int main() {
 
 ## 普通类从模板类派生
 
-```
+```C++
 template<class T>
 class A{
     T v1;

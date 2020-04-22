@@ -15,7 +15,7 @@ tags: [C++]
 
 考虑一下交换两个变量的值的函数，如下，我们可以通过定义不同类型的重载函数实现对不同类型的两个值的交换。下面我们定义了四个名字相同、参数列表不同的函数。
 
-```
+```C++
 // 交换 int 变量的值
 void Swap(int *a, int *b) {
     int temp = *a;
@@ -63,7 +63,7 @@ void Swap(bool *a, bool *b) {
 
 下面来实践一下，将上面的四个 Swap() 函数压缩为一个函数模板。
 
-```
+```C++
 #include<iostream>
 using namespace std;
 
@@ -117,7 +117,7 @@ B, A
 
 引用形参版本：
 
-```
+```C++
 #include<iostream>
 using namespace std;
 
@@ -156,7 +156,7 @@ int main() {
 
 下面我们来总结一下定义模板函数的语法：
 
-```
+```C++
 template<typename 类型参数1, typename 类型参数2, ...> 返回值类型 函数名(形参列表) {
     // 在函数体中可以使用类型参数
 }
@@ -168,7 +168,7 @@ template<typename 类型参数1, typename 类型参数2, ...> 返回值类型 �
 
 上面的 `Swap` 也可以使用 `class` 来指明类型参数：
 
-```
+```C++
 template<class T> void Swap(T &a, T &b) {
     T temp = a;
     a = b;
@@ -180,7 +180,7 @@ template<class T> void Swap(T &a, T &b) {
 
 为了加深对函数模板的理解，我们再来看一个求三个数的最大值的例子：
 
-```
+```C++
 #include<iostream>
 using namespace std;
 
