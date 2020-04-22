@@ -12,7 +12,7 @@ tags: [C]
 
 > 那这个规则对结构体变量来说是否还适用呢？
 
-```
+```C
 #include <stdio.h>
 
 typedef struct User {
