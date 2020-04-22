@@ -1,0 +1,177 @@
+---
+title: 将 C++ 模板应用于多文件编程
+date: 2020-04-22 20:27:00
+tags: [C++]
+---
+
+在将函数用于多文件编程时，我们通常是将函数定义放在源文件（.cpp 文件）中，将函数声明放在头文件（.h文件）中，使用函数时引入（#include 命令）对应的头文件即可。
+
+编译是针对单个源文件的，只要有函数声明，编译器就能知道函数调用是否正确；而将函数调用和函数定义对应起来的过程，可以延迟到链接时期。正是有了连接器的存在，函数声明和函数定义的分离才得以实现。
+
+将类应用于多文件编程也是类似的道理，我们可以将类的声明和类的实现分别放到头文件和源文件中。类的声明已经包含了所有成员变量的定义和所有成员函数的声明（也可以是 inline 形式的定义），这样就知道如何创建对象了，也知道如何调用成员函数了，只是还不能将函数调用与函数实现对应起来，但是这又有什么关系呢，反正连接器可以帮助我们完成这项工作。
+
+> 总的来说，不管是函数还是类，声明和定义（实现）的分离其实是一回事，都是将函数 定义放到其他文件中，最终要解决的问题也只有一个，就是把函数调用和函数定义对应起来（找到函数定义的地址，并填充到函数调用处），而保证完成这项工作的就是链接器。
+
+基于传统的编程思维，初学者往往也会将模板（函数模板和类模板）的声明和定义分散到不同的文件中，以期达到模块化编程的目的。但事实证明这种做法是不对的，程序员惯用的做法是将模板的声明和定义都放到头文件中。
+
+模板并不是真正的函数或类，它仅仅是用来生成函数或类的一张 "图纸"，在这个生成过程中有三点需要明确：
+
+* 模板的实例化是按需进行的，用到哪个类型就生成针对哪个类型的函数或类，不会提前生成过多的代码
+
+* 模板的实例化是由编译器完成的，而不是由链接器完成的
+
+* 在实例化过程中需要知道模板的所有细节，包含声明和定义（只有一个声明是不够的，可能会在链接阶段才发现错误）
+
+
+## 将函数模板的声明和定义分散到不同的文件
+
+func.cpp
+
+```
+// 交换两个数的值
+template<typename T> void Swap(T &a, T &b) {
+    T temp = a;
+    a = b;
+    b = temp;
+}
+
+// 冒泡排序算法
+void bubble_sort(int arr[], int n) {
+    for (int i = 0; i < n - 1; ++i) {
+        bool isSorted = true;
+        for (int j = 0; j < n - 1 - i; ++j) {
+            if (arr[j] > arr[j + 1]) {
+                isSorted = false;
+                Swap(arr[j], arr[j + 1]); // 调用 Swap() 函数
+            }
+        }
+        if (isSorted) break;
+    }
+}
+```
+
+func.h
+
+```
+#ifndef _FUNC_H
+#define _FUNC_H
+
+template<typename T> void Swap(T &a, T &b);
+void bubble_sort(int arr[], int n);
+
+#endif
+```
+
+main.cpp
+
+```
+#include "func.h"
+
+int main()
+{
+    int n1 = 10, n2 = 20;
+    Swap(n1, n2);
+
+    double f1 = 23.8, f2 = 92.6;
+    Swap(f1, f2);
+
+    return 0;
+}
+```
+
+该工程包含了两个源文件和一个头文件，func.cpp 中定义了两个函数，func.h 中对函数进行了声明，main.cpp 中对函数进行了调用，这是典型的将函数的声明和实现分离的编程模式。
+
+编译一下：
+
+```
+gcc func.cpp main.cpp
+```
+
+编译产生了一个链接错误，意思是无法找到 `void Swap<double>(double&, double&)` 这个函数。主函数 main() 中共调用了两个版本的 Swap() 函数，它们的原型分别是：
+
+```
+void Swap<int>(int&, int&);
+void Swap<double>(double&, double&);
+```
+
+为什么针对 int 的版本能够找到定义，而针对 double 的版本就找不到呢？
+
+我们首先来说针对 double 的版本为什么找不到定义。当编译器编译 main.cpp 时，发现使用到了 double 版本的 Swap() 函数，于是尝试生成一个 double 版本的实例，但是由于只有声明没有定义，所以生成失败。不过这个时候编译器不会报错，而是针对该函数的调用做一个记录，希望等到链接程序时在其他目标文件（.obj 或者 .o 文件）中找到该函数的定义。很明显，本例需要到 func.obj 中寻找。但是遗憾的是，func.cpp 中没有调用 double 版本的 Swap() 函数，编译器不会生成 double 版本的实例，所以连接器最终也找不到 double 版本的函数定义，只能抛出一个链接错误，让程序员修改代码。
+
+那么，针对 int 的版本为什么能够找到定义呢？因为在 bubble_sort() 函数中调用了 int 版本的 Swap，这样做的结果是：编译生成的 func.obj 中会有一个 int 版本的 Swap() 函数定义。编译器在编译 main.cpp 时虽然找不到 int 版本的实例，但是等到链接程序时，连接器在 func.obj 中找到了，所以针对 int 版本的调用就不会出错。
+
+
+## 将类模板的声明和实现分散到不同的文件
+
+我们再看一个类模板的反面教材，它将类模板的声明和实现分别放到了头文件和源文件。
+
+point.h
+
+```
+#ifndef _POINT_H
+#define _POINT_H
+
+template<class T1, class T2>
+class Point {
+public:
+    Point(T1 x, T2 y): m_x(x), m_y(y) {}
+
+public:
+    T1 getX() const { return m_x; }
+    void setX(T1 x) { m_x = x; }
+    T2 getY() const { return m_y; }
+    void setY(T2 y) { m_y = y; }
+    void display() const;
+private:
+    T1 m_x;
+    T2 m_y;
+};
+
+#endif
+```
+
+point.cpp
+
+```
+#include <iostream>
+#include "point.h"
+using namespace std;
+
+template<class T1, class T2>
+void Point<T1, T2>::display() const {
+    cout << "x=" << m_x << ", y=" << m_y << endl;
+}
+```
+
+main.cpp
+
+```
+#include <iostream>
+#include "point.h"
+using namespace std;
+
+int main()
+{
+    Point<int, int> p1(10, 20);
+    p1.setX(40);
+    p1.setY(50);
+    cout << "x=" << p1.getX() << ", y=" << p1.getY() << endl;
+
+    Point<char*, char*> p2("东经180度", "北纬210度");
+    p2.display();
+
+    return 0;
+}
+```
+
+该工程包含了两个源文件和一个头文件，point.h 中声明了类模板，point.cpp 中对类模板进行了实现，main.cpp 中通过类模板创建了对象，并调用了成员函数，这是典型的将类的声明和实现分离的编程模式。
+
+运行上面的程序，会产生一个链接错误，意思是无法通过 p2 调用 `Point<char*, char*>::display() const` 这个函数。
+
+类模板声明位于 point.h 中，它包含了所有成员变量的定义以及构造函数、get 函数、set 函数的定义，这些信息足够创建出一个完整的对象了，并且可以通过对象调用 get 函数和 set 函数，所以 main.cpp 的前 11 行代码都不会报错。而第 12 行代码调用了 display() 函数，该函数的定义位于 point.cpp 文件中，并且 point.cpp 中也没有生成对应的实例，所以会在链接期间抛出错误。
+
+
+## 总结
+
+通过上面两个反面教材可以总结出，不能将模板的声明和定义分散到多个文件中的根本原因是：模板的实例化是由编译器完成的，而不是由链接器完成的，这可能会导致在链接期间找不到对应的模板实例。
+
