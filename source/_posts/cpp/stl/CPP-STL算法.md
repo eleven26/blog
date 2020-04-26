@@ -32,7 +32,7 @@ STL 中的大部分常用算法都在头文件 algorithm 中定义。此外，�
 
 下面介绍一个常用算法 find，以便对算法是什么、怎么用有一个基本的概念。find 算法和其他算法一样都是函数模板。find 模板的原型如下：
 
-```
+```C++
 template<class Init, class T>
 Init find(Init first, Init last, const T& val);
 ```
@@ -49,7 +49,7 @@ find 模板使用 == 运算符判断元素是否相等。因此，如果 [first,
 
 演示 find 用法的程序如下：
 
-```
+```C++
 #include<vector>
 #include<algorithm>
 #include<iostream>
@@ -93,14 +93,14 @@ not found
 
 STL 中还有一个常用的算法 sort，对于容器排序，其原型为：
 
-```
+```C++
 template<class_RandIt>
 void sort(_RandIt first, _RandIt last);
 ```
 
 该算法可以用来对区间 [first, last) 从小到大进行排序。下面两行程序就能对数组 a 排序：
 
-```
+```C++
 int a[4] = {3, 4, 2, 1};
 sort(a, a + 4);
 ```

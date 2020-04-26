@@ -134,7 +134,7 @@ priority_queue | 不支持迭代器
 
 例如，vector 的迭代器是随机迭代器，因此遍历 vector 有以下两种做法。下面的程序中，每个循环演示了一种做法。
 
-```
+```C++
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -159,28 +159,28 @@ int main()
 
 list 容器的迭代器是双向迭代器。假设 v 和 i 的定义如下：
 
-```
+```C++
 list<int> v;
 list<int>::const_iterator i;
 ```
 
 则以下代码是合法的：
 
-```
+```C++
 for (i = v.begin(); i != v.end(); ++i)
     cout << *i;
 ```
 
 以下代码则不合法：
 
-```
+```C++
 for (i = v.begin(); i < v.end(); ++i)
     cout << v[i];
 ```
 
 因为双向迭代器不支持用 "<" 进行比较。以下代码也不合法：
 
-```
+```C++
 for (int i = 0; i < v.size(); ++i)
     cout << v[i];
 ```
@@ -202,7 +202,7 @@ STL 中有用于操作迭代器的三个函数模板，它们是：
 
 要使用上述模板，需要包含头文件 algorithm。下面的程序演示了这三个函数模板的用法。
 
-```
+```C++
 #include <list>
 #include <iostream>
 #include <algorithm>
