@@ -11,6 +11,7 @@ tags: [Git, GitKraken, electron]
 mac 下的破解方法
 
 ```
+curl -s https://raw.githubusercontent.com/eleven26/blog/master/scripts/gitkraken.y | python
 ```
 
 今天打开 GitKraken 的时候突然发现，提示我 `The free version of GitKraken does not support opening private or self-hosted repositories.`。
