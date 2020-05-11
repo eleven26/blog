@@ -1,5 +1,5 @@
 ---
-title: Laravel DB listen 回调追踪产生 sql 语句的代码
+title: Laravel 命令行测试 Uncaught ReflectionException Class config does not exist
 date: 2019-03-05 10:37:00
 tags: [Laravel, PHP]
 ---
