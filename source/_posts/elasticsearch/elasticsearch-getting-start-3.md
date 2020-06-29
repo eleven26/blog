@@ -1,6 +1,6 @@
 ---
 title: Elasticsearch 入门（三）- 使用聚合分析结果
-date: 2020-06-29 11:47:00
+date: 2020-06-29 11:47:02
 tags: [ElasticSearch]
 ---
 
