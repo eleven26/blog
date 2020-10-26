@@ -1,5 +1,5 @@
 ---
-title: 二分查找法计算一个数的平方根-递归实现
+title: 二分查找法计算一个数的平方根
 date: 2020-10-26 15:52:02
 tags: [算法, 二分查找法]
 ---
@@ -101,6 +101,41 @@ function calc($value, $low, $high, $float)
 
 var_dump(calc($value, 0, $value, 6)); // 2.828427
 ```
+
+
+### 非递归实现
+
+非递归实现的方式也挺简单的，只要在 `$mid * $mid > $value` 和 `$mid * $mid < $value` 两种情况下，分别修改一下区间的上限、下限即可。
+
+```PHP
+// 求 8 的平方根，保留 6 位小数
+$value = 8;
+// 2.8284271247462
+
+function calc($value, $low, $high, $float)
+{
+    // 依次确定每一位小数
+    $v = 1 / pow(10, $float);
+
+    while (true) {
+        $mid = round(($low + $high) / 2, $float);
+        $mid2 = $mid * $mid;
+
+        if ($mid2 > $value) {
+            if (($mid - $v) * ($mid - $v) <= $value) return $mid - $v;
+            $high = $mid;
+        } else if ($mid2 < $value) {
+            if (($mid + $v) * ($mid + $v) >= $value) return $mid;
+            $low = $mid;
+        } else {
+            return $mid;
+        }
+    }
+}
+
+var_dump(calc($value, 0, $value, 6)); // 2.828427
+```
+
 
 ### 总结
 
