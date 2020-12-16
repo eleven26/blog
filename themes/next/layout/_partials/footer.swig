@@ -25,7 +25,6 @@
   <div class="powered-by">{#
   #}{{ __('footer.powered', '<a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a>') }}{#
 #}</div>
-<a href="http://www.miitbeian.gov.cn/">粤ICP备17134515号-1</a>
 {% endif %}
 
 {% if theme.footer.powered and theme.footer.theme.enable %}
@@ -46,3 +45,7 @@
   #}{{ theme.footer.custom_text }}{#
 #}</div>
 {% endif %}
+
+<div class="footer-custom">{#
+  #}云淡风轻 - <a target="_blank" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备17134515号</a>{#
+#}</div>
