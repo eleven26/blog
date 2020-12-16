@@ -25,6 +25,7 @@
   <div class="powered-by">{#
   #}{{ __('footer.powered', '<a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a>') }}{#
 #}</div>
+<a href="http://www.miitbeian.gov.cn/">粤ICP备17134515号-1</a>
 {% endif %}
 
 {% if theme.footer.powered and theme.footer.theme.enable %}
