@@ -64,14 +64,14 @@ class CollectionStats
             'collection'     => $this->stats['ns'],
             'size'           => format($this->stats['size']),
             'count'          => $this->stats['count'],
-            'avgObjSize'     => format($this->stats['avgObjSize']),
+            'avgObjSize'     => format($this->stats['avgObjSize'] ?? 0),
             'storageSize'    => format($this->stats['storageSize']),
             'totalIndexSize' => format($this->stats['totalIndexSize']),
 
             'raw' => [
                 'count'          => $this->stats['count'],
                 'size'           => $this->stats['size'],
-                'avgObjSize'     => $this->stats['avgObjSize'],
+                'avgObjSize'     => $this->stats['avgObjSize'] ?? 0,
                 'storageSize'    => $this->stats['storageSize'],
                 'totalIndexSize' => $this->stats['totalIndexSize'],
                 'bytes_in_cache' => $this->stats['wiredTiger']['cache']['bytes currently in the cache'],
