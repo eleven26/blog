@@ -47,10 +47,5 @@
 {% endif %}
 
 <div class="footer-custom">{#
-  #}云淡风轻 - <a target="_blank" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备17134515号</a>{#
+  #}{#
 #}</div>
-
-<script src="https://cdn.bootcss.com/axios/0.19.0/axios.min.js"></script>
-<script>
-axios.get('https://statistics.baiguiren.com')
-</script>
