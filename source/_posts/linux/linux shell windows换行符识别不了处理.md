@@ -1,5 +1,5 @@
 ---
-title: linux 执行文件换行符识别不了处理
+title: linux shell windows 换行符识别不了处理
 date: 2021-07-10 15:31:00
 tags: [linux]
 ---
